@@ -176,7 +176,6 @@ create table public.supplier_verifications (
   reviewed_by         uuid references auth.users(id) on delete set null,
   reviewed_at         timestamptz,
   message_to_company  text check (message_to_company is null or char_length(message_to_company) <= 2000),
-  internal_notes      text check (internal_notes is null or char_length(internal_notes) <= 4000),
   created_at          timestamptz not null default now(),
   updated_at          timestamptz not null default now()
 );
@@ -184,6 +183,15 @@ create index supplier_verifications_company_idx on public.supplier_verifications
 create index supplier_verifications_status_idx on public.supplier_verifications(status);
 create trigger supplier_verifications_updated_at before update on public.supplier_verifications
   for each row execute function public.set_updated_at();
+
+-- Staff-only notes live in their own table so row-level access to a verification
+-- never exposes them to the company being reviewed.
+create table public.verification_internal_notes (
+  verification_id  uuid primary key references public.supplier_verifications(id) on delete cascade,
+  notes            text not null check (char_length(notes) <= 4000),
+  updated_by       uuid references auth.users(id) on delete set null,
+  updated_at       timestamptz not null default now()
+);
 
 create table public.verification_documents (
   id               uuid primary key default gen_random_uuid(),

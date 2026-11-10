@@ -141,7 +141,7 @@ export async function recordCommissionPaymentAction(_: ActionState, fd: FormData
   return r.error ? fail(r.error) : done();
 }
 
-export async function refreshOverdueAction(_: ActionState): Promise<ActionState> {
+export async function refreshOverdueAction(): Promise<ActionState> {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("refresh_overdue_commissions");
   if (error) return fail(error);

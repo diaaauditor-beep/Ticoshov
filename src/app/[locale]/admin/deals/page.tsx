@@ -1,3 +1,4 @@
+import { isoDaysAgo } from "@/lib/format";
 import { resolveLocale } from "@/i18n/get-dictionary";
 import { requireStaff } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -15,7 +16,7 @@ export default async function AdminDealsPage({ params, searchParams }: PageProps
   let q = supabase.from("deals").select("id, reference, title, status, deal_value, currency_code, updated_at, buyer:companies!deals_buyer_company_id_fkey(name, name_ar), supplier:companies!deals_supplier_company_id_fkey(name, name_ar)");
   if (status in t.enums.dealStatus) q = q.eq("status", status as "completed");
   // "overdue actions": active deals with no update for 14 days
-  if (stale) q = q.not("status", "in", "(completed,cancelled)").lt("updated_at", new Date(Date.now() - 14 * 86400000).toISOString());
+  if (stale) q = q.not("status", "in", "(completed,cancelled)").lt("updated_at", isoDaysAgo(14));
   const { data } = await q.order("updated_at", { ascending: stale }).limit(300);
   return (
     <div>

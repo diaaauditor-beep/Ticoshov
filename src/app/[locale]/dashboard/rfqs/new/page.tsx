@@ -1,3 +1,4 @@
+import { isoDateFromNow } from "@/lib/format";
 import { redirect } from "next/navigation";
 import { resolveLocale } from "@/i18n/get-dictionary";
 import { requireCompany } from "@/lib/auth";
@@ -25,7 +26,7 @@ export default async function NewRfqPage({ params, searchParams }: PageProps<"/[
   const { data: supplier } = supplierId && !product
     ? await supabase.from("companies").select("id, name, name_ar").eq("id", supplierId).eq("kind", "supplier").maybeSingle()
     : { data: null };
-  const defaultExpiry = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+  const defaultExpiry = isoDateFromNow(30);
   const today = new Date().toISOString().slice(0, 10);
   const targetName = product ? loc(locale, product.companies?.name_ar, product.companies?.name) : supplier ? loc(locale, supplier.name_ar, supplier.name) : null;
 

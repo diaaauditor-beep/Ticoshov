@@ -182,9 +182,14 @@ begin
 
   update public.supplier_verifications
      set status = p_status, reviewed_by = auth.uid(), reviewed_at = now(),
-         message_to_company = nullif(trim(p_message), ''),
-         internal_notes = coalesce(nullif(trim(p_internal_notes), ''), internal_notes)
+         message_to_company = nullif(trim(p_message), '')
    where id = p_verification;
+  if nullif(trim(p_internal_notes), '') is not null then
+    insert into public.verification_internal_notes (verification_id, notes, updated_by)
+    values (p_verification, left(trim(p_internal_notes), 4000), auth.uid())
+    on conflict (verification_id) do update
+      set notes = excluded.notes, updated_by = excluded.updated_by, updated_at = now();
+  end if;
   update public.companies
      set verification_status = p_status,
          verified_at = case when p_status = 'approved' then now() else null end
@@ -325,6 +330,25 @@ begin
   returning id into v_id;
   return v_id;
 end $$;
+
+-- Fill the sender's company when the client omits it (the INSERT policy still verifies it).
+create or replace function public.message_before_insert()
+returns trigger language plpgsql security definer set search_path = '' as $$
+declare
+  v_c record;
+begin
+  if new.sender_company_id is null and not public.is_staff() then
+    select buyer_company_id, supplier_company_id into v_c from public.conversations where id = new.conversation_id;
+    if public.is_company_member(v_c.supplier_company_id) then
+      new.sender_company_id := v_c.supplier_company_id;
+    elsif public.is_company_member(v_c.buyer_company_id) then
+      new.sender_company_id := v_c.buyer_company_id;
+    end if;
+  end if;
+  return new;
+end $$;
+create trigger messages_before_insert before insert on public.messages
+  for each row execute function public.message_before_insert();
 
 create or replace function public.message_after_insert()
 returns trigger language plpgsql security definer set search_path = '' as $$
@@ -757,7 +781,8 @@ returns integer language plpgsql security definer set search_path = '' as $$
 declare
   v_count integer;
 begin
-  if public.is_client_request() and not public.is_staff() then
+  -- callable by staff from the UI, or by a scheduler running without a user session
+  if auth.uid() is not null and not public.is_staff() then
     raise exception 'Staff only' using errcode = '42501';
   end if;
   update public.commissions set status = 'overdue'
@@ -859,6 +884,6 @@ grant execute on function public.auth_role(), public.is_admin(), public.is_staff
 revoke execute on function public.notify_user(uuid, text, jsonb, text), public.notify_company(uuid, text, jsonb, text, uuid),
   public.notify_staff(text, jsonb, text), public.log_admin_action(text, text, uuid, jsonb),
   public.record_deal_status(uuid, public.deal_status, public.deal_status, text), public.next_deal_reference(),
-  public.handle_new_user(), public.audit_trigger()
+  public.handle_new_user(), public.audit_trigger(), public.message_before_insert()
 from authenticated;
 grant usage on sequence public.rfq_reference_seq, public.deal_reference_seq to authenticated;

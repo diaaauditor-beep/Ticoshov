@@ -8,7 +8,7 @@ import { ActionButton, ActionForm, FileField, SelectField, SubmitButton, TextAre
 import { Badge, DL, Notice, PageHeader, Section, StatusBadge, VerifiedBadge } from "@/components/ui/primitives";
 import { LineItemsEditor } from "@/components/LineItemsEditor";
 import { FileList } from "@/components/FileList";
-import { formatDate, formatMoney, formatNumber, loc } from "@/lib/format";
+import { formatDate, formatMoney, formatNumber, isoDateFromNow, loc } from "@/lib/format";
 import {
   acceptQuotationAction, openConversationAction, rejectQuotationAction, saveQuotationAction,
   setRfqStatusAction, startNegotiationAction, withdrawQuotationAction,
@@ -39,7 +39,7 @@ export default async function RfqDetailPage({ params }: PageProps<"/[locale]/das
   const canQuote = !isBuyer && viewer.company.kind === "supplier" && viewer.company.verification_status === "approved" && rfq.status === "open" && new Date(rfq.expires_at) > new Date();
   const editable = mine && (mine.status === "submitted" || mine.status === "negotiating");
   const today = new Date().toISOString().slice(0, 10);
-  const defaultValid = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10);
+  const defaultValid = isoDateFromNow(14);
 
   return (
     <div className="space-y-6">

@@ -24,7 +24,7 @@ export default async function OnboardingPage({ params }: PageProps<"/[locale]/on
         {viewer.profile.role === "supplier" && <div className="mt-4"><Notice tone="navy">{t.onboarding.supplierNext}</Notice></div>}
         <ActionForm action={createCompanyAction} errors={t.errors} className="card card-pad mt-6">
           <input type="hidden" name="locale" value={locale} />
-          <CompanyFields t={t} locale={locale} ref={ref} d={{ country_code: viewer.profile.role === "buyer" ? "SA" : "EG", contact_name: viewer.profile.full_name, contact_email: viewer.email }} />
+          <CompanyFields t={t} locale={locale} reference={ref} d={{ country_code: viewer.profile.role === "buyer" ? "SA" : "EG", contact_name: viewer.profile.full_name, contact_email: viewer.email }} />
           <div className="mt-8 flex justify-end"><SubmitButton>{t.onboarding.create}</SubmitButton></div>
         </ActionForm>
       </main>

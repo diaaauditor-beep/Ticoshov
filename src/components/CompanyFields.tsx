@@ -21,14 +21,14 @@ export function CheckboxGroup({ name, items, selected, columns = "sm:grid-cols-3
   );
 }
 
-export function CompanyFields({ t, locale, ref, d = {}, selectedCategories = [] }: {
-  t: Dictionary; locale: Locale; ref: Reference; d?: Defaults; selectedCategories?: string[];
+export function CompanyFields({ t, locale, reference, d = {}, selectedCategories = [] }: {
+  t: Dictionary; locale: Locale; reference: Reference; d?: Defaults; selectedCategories?: string[];
 }) {
-  const o = options(ref, locale);
+  const o = options(reference, locale);
   const businessTypes = Object.entries(t.enums.businessType).map(([value, label]) => ({ value, label }));
   const v = (k: string) => (d[k] == null ? undefined : String(d[k]));
   const arr = (k: string) => (Array.isArray(d[k]) ? (d[k] as string[]) : []);
-  const allCategories = ref.categories.filter((c) => c.is_active).map((c) => ({
+  const allCategories = reference.categories.filter((c) => c.is_active).map((c) => ({
     value: c.id, label: c.parent_id ? `— ${loc(locale, c.name_ar, c.name_en)}` : loc(locale, c.name_ar, c.name_en),
   }));
   return (

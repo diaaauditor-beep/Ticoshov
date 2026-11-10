@@ -44,7 +44,7 @@ export default async function EditProductPage({ params, searchParams }: PageProp
           </div>
         </Section>
       )}
-      <ProductForm t={t} locale={locale} ref={ref} companyId={viewer.company.id} product={product}
+      <ProductForm t={t} locale={locale} reference={ref} companyId={viewer.company.id} product={product}
         specs={(specs ?? []).map((s) => ({ key: s.key_en, value: s.value }))} canPublish={viewer.company.verification_status === "approved"} />
     </div>
   );

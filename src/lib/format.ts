@@ -44,3 +44,12 @@ export function bytes(n: number | null | undefined) {
   if (n < 1048576) return `${(n / 1024).toFixed(0)} KB`;
   return `${(n / 1048576).toFixed(1)} MB`;
 }
+
+/** ISO date `days` from now (request-time; used by dynamic server components). */
+export function isoDateFromNow(days: number): string {
+  return new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
+}
+/** ISO timestamp `days` ago. */
+export function isoDaysAgo(days: number): string {
+  return new Date(Date.now() - days * 86_400_000).toISOString();
+}

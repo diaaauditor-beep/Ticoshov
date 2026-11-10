@@ -925,14 +925,14 @@ isOneToOne: false
                   ]
                 },"supplier_verifications": {
                   Row: {
-                    "company_id": string,"created_at": string,"id": string,"internal_notes": string | null,"message_to_company": string | null,"reviewed_at": string | null,"reviewed_by": string | null,"status": Database["public"]['Enums']["verification_status"],"submitted_at": string | null,"submitted_by": string | null,"updated_at": string
+                    "company_id": string,"created_at": string,"id": string,"message_to_company": string | null,"reviewed_at": string | null,"reviewed_by": string | null,"status": Database["public"]['Enums']["verification_status"],"submitted_at": string | null,"submitted_by": string | null,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "company_id": string,"created_at"?: string,"id"?: string,"internal_notes"?: string | null,"message_to_company"?: string | null,"reviewed_at"?: string | null,"reviewed_by"?: string | null,"status"?: Database["public"]['Enums']["verification_status"],"submitted_at"?: string | null,"submitted_by"?: string | null,"updated_at"?: string
+                    "company_id": string,"created_at"?: string,"id"?: string,"message_to_company"?: string | null,"reviewed_at"?: string | null,"reviewed_by"?: string | null,"status"?: Database["public"]['Enums']["verification_status"],"submitted_at"?: string | null,"submitted_by"?: string | null,"updated_at"?: string
                   }
                   Update: {
-                    "company_id"?: string,"created_at"?: string,"id"?: string,"internal_notes"?: string | null,"message_to_company"?: string | null,"reviewed_at"?: string | null,"reviewed_by"?: string | null,"status"?: Database["public"]['Enums']["verification_status"],"submitted_at"?: string | null,"submitted_by"?: string | null,"updated_at"?: string
+                    "company_id"?: string,"created_at"?: string,"id"?: string,"message_to_company"?: string | null,"reviewed_at"?: string | null,"reviewed_by"?: string | null,"status"?: Database["public"]['Enums']["verification_status"],"submitted_at"?: string | null,"submitted_by"?: string | null,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -1005,6 +1005,26 @@ isOneToOne: false
       foreignKeyName: "verification_documents_verification_id_fkey"
       columns: ["verification_id"]
 isOneToOne: false
+      referencedRelation: "supplier_verifications"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"verification_internal_notes": {
+                  Row: {
+                    "notes": string,"updated_at": string,"updated_by": string | null,"verification_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "notes": string,"updated_at"?: string,"updated_by"?: string | null,"verification_id": string
+                  }
+                  Update: {
+                    "notes"?: string,"updated_at"?: string,"updated_by"?: string | null,"verification_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "verification_internal_notes_verification_id_fkey"
+      columns: ["verification_id"]
+isOneToOne: true
       referencedRelation: "supplier_verifications"
       referencedColumns: ["id"]
     }
@@ -1099,6 +1119,9 @@ isOneToOne: false
                            },
 "my_company_ids":
 { Args: Record<PropertyKey, never>; Returns: string[]
+                           },
+"my_company_quoted":
+{ Args: { "rid": string }; Returns: boolean
                            },
 "next_deal_reference":
 { Args: Record<PropertyKey, never>; Returns: string

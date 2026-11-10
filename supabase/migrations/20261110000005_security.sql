@@ -30,8 +30,11 @@ returns boolean language sql stable security definer set search_path = '' as $$
   select coalesce(public.auth_role() in ('admin', 'operations'), false)
 $$;
 
+-- True when the statement runs with a client role (direct PostgREST access).
+-- Must only be called from SECURITY INVOKER code: inside SECURITY DEFINER functions
+-- current_user is the function owner, so this returns false there by design.
 create or replace function public.is_client_request()
-returns boolean language sql stable set search_path = '' as $$
+returns boolean language sql stable security invoker set search_path = '' as $$
   select current_user in ('authenticated', 'anon')
 $$;
 
@@ -103,7 +106,9 @@ $$;
 -- Column guards (things a client may never change directly)
 -- ---------------------------------------------------------------------
 create or replace function public.guard_profiles()
-returns trigger language plpgsql security definer set search_path = '' as $$
+-- SECURITY INVOKER on purpose: current_user must stay 'authenticated' for direct client
+-- writes (guard applies) and becomes the owner inside SECURITY DEFINER workflow RPCs (guard skipped).
+returns trigger language plpgsql security invoker set search_path = '' as $$
 begin
   if public.is_client_request() and not public.is_admin() then
     if new.role is distinct from old.role or new.is_active is distinct from old.is_active then
@@ -120,7 +125,9 @@ create trigger profiles_guard before update on public.profiles
   for each row execute function public.guard_profiles();
 
 create or replace function public.guard_companies()
-returns trigger language plpgsql security definer set search_path = '' as $$
+-- SECURITY INVOKER on purpose: current_user must stay 'authenticated' for direct client
+-- writes (guard applies) and becomes the owner inside SECURITY DEFINER workflow RPCs (guard skipped).
+returns trigger language plpgsql security invoker set search_path = '' as $$
 begin
   if public.is_client_request() and not public.is_staff() then
     if new.verification_status is distinct from old.verification_status
@@ -138,7 +145,9 @@ create trigger companies_guard before update on public.companies
   for each row execute function public.guard_companies();
 
 create or replace function public.guard_quotations()
-returns trigger language plpgsql security definer set search_path = '' as $$
+-- SECURITY INVOKER on purpose: current_user must stay 'authenticated' for direct client
+-- writes (guard applies) and becomes the owner inside SECURITY DEFINER workflow RPCs (guard skipped).
+returns trigger language plpgsql security invoker set search_path = '' as $$
 begin
   if public.is_client_request() then
     if new.rfq_id <> old.rfq_id or new.supplier_company_id <> old.supplier_company_id then
@@ -161,7 +170,9 @@ create trigger quotations_guard before update on public.quotations
   for each row execute function public.guard_quotations();
 
 create or replace function public.guard_rfqs()
-returns trigger language plpgsql security definer set search_path = '' as $$
+-- SECURITY INVOKER on purpose: current_user must stay 'authenticated' for direct client
+-- writes (guard applies) and becomes the owner inside SECURITY DEFINER workflow RPCs (guard skipped).
+returns trigger language plpgsql security invoker set search_path = '' as $$
 begin
   if public.is_client_request() and not public.is_staff() then
     if new.buyer_company_id <> old.buyer_company_id or new.reference <> old.reference then
@@ -228,7 +239,7 @@ end $$;
 -- Defense in depth: anonymous visitors never touch private tables at all.
 revoke all on
   public.company_legal, public.company_members, public.supplier_verifications,
-  public.verification_documents, public.rfqs, public.rfq_attachments, public.quotations,
+  public.verification_internal_notes, public.verification_documents, public.rfqs, public.rfq_attachments, public.quotations,
   public.quotation_items, public.quotation_attachments, public.conversations, public.messages,
   public.message_reports, public.deals, public.deal_status_history, public.commission_rules,
   public.commissions, public.commission_payments, public.shipments, public.shipment_documents,
@@ -316,6 +327,10 @@ create policy "verifications read" on public.supplier_verifications for select t
   using (public.is_company_member(company_id) or public.is_staff());
 -- created/updated through submit_verification() / review_verification()
 
+create policy "verification notes staff" on public.verification_internal_notes for select to authenticated
+  using (public.is_staff());
+-- written only through review_verification()
+
 create policy "verification docs read" on public.verification_documents for select to authenticated
   using (public.is_company_member(company_id) or public.is_staff());
 create policy "verification docs upload" on public.verification_documents for insert to authenticated
@@ -371,8 +386,22 @@ create policy "product specs write" on public.product_specifications for all to 
 -- ---------------------------------------------------------------------
 -- RFQs and quotations
 -- ---------------------------------------------------------------------
+create or replace function public.my_company_quoted(rid uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select exists (select 1 from public.quotations q
+                 where q.rfq_id = rid and q.supplier_company_id in (select public.my_company_ids()))
+$$;
+
+-- Evaluated on the row's own columns (not can_view_rfq(id)) so INSERT ... RETURNING works:
+-- a freshly inserted row is not yet visible to a function that re-reads the table.
 create policy "rfqs read" on public.rfqs for select to authenticated
-  using (public.can_view_rfq(id));
+  using (
+    public.is_staff()
+    or public.is_company_member(buyer_company_id)
+    or public.my_company_quoted(id)
+    or (status = 'open' and expires_at > now() and exists (
+          select 1 from public.my_approved_supplier_ids() s(sid)
+          where target_company_id is null or target_company_id = s.sid)));
 create policy "rfqs buyer insert" on public.rfqs for insert to authenticated
   with check (
     public.is_company_member(buyer_company_id)
@@ -553,3 +582,20 @@ create policy "settings read" on public.platform_settings for select
   using (is_public or public.is_staff());
 create policy "settings admin write" on public.platform_settings for all to authenticated
   using (public.is_admin()) with check (public.is_admin());
+
+-- ---------------------------------------------------------------------
+-- Actor columns default to the caller. INSERT policies still require
+-- them to equal auth.uid(), so a client can never attribute a row to someone else.
+-- ---------------------------------------------------------------------
+alter table public.verification_documents alter column uploaded_by set default auth.uid();
+alter table public.rfqs                   alter column created_by  set default auth.uid();
+alter table public.rfq_attachments        alter column uploaded_by set default auth.uid();
+alter table public.quotations             alter column created_by  set default auth.uid();
+alter table public.quotation_attachments  alter column uploaded_by set default auth.uid();
+alter table public.messages               alter column sender_id   set default auth.uid();
+alter table public.message_reports        alter column reporter_id set default auth.uid();
+alter table public.commission_payments    alter column submitted_by set default auth.uid();
+alter table public.shipment_documents     alter column uploaded_by set default auth.uid();
+alter table public.reviews                alter column created_by  set default auth.uid();
+alter table public.products               alter column created_by  set default auth.uid();
+alter table public.shipments              alter column created_by  set default auth.uid();

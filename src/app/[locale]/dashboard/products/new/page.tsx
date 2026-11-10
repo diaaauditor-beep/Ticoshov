@@ -13,7 +13,7 @@ export default async function NewProductPage({ params }: PageProps<"/[locale]/da
   return (
     <div className="max-w-4xl">
       <PageHeader title={t.product.newTitle} />
-      <ProductForm t={t} locale={locale} ref={ref} companyId={viewer.company.id} canPublish={viewer.company.verification_status === "approved"} />
+      <ProductForm t={t} locale={locale} reference={ref} companyId={viewer.company.id} canPublish={viewer.company.verification_status === "approved"} />
     </div>
   );
 }

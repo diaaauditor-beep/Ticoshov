@@ -35,7 +35,7 @@ export default async function CompanyPage({ params }: PageProps<"/[locale]/dashb
       <ActionForm action={updateCompanyAction} errors={t.errors} success={t.common.saved} className="card card-pad">
         <input type="hidden" name="company_id" value={c.id} />
         <fieldset disabled={!canEdit}>
-          <CompanyFields t={t} locale={locale} ref={ref}
+          <CompanyFields t={t} locale={locale} reference={ref}
             d={{ ...c, ...(legal ?? {}) } as unknown as Record<string, string | number | null | string[]>}
             selectedCategories={(cats ?? []).map((x) => x.category_id)} />
         </fieldset>

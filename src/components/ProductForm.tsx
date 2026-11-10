@@ -10,11 +10,11 @@ import type { Database } from "@/lib/supabase/database.types";
 
 type Product = Database["public"]["Tables"]["products"]["Row"];
 
-export function ProductForm({ t, locale, ref, companyId, product, specs = [], canPublish }: {
-  t: Dictionary; locale: Locale; ref: Reference; companyId: string; product?: Product;
+export function ProductForm({ t, locale, reference, companyId, product, specs = [], canPublish }: {
+  t: Dictionary; locale: Locale; reference: Reference; companyId: string; product?: Product;
   specs?: Array<{ key: string; value: string }>; canPublish: boolean;
 }) {
-  const o = options(ref, locale);
+  const o = options(reference, locale);
   const statuses = (["draft", "published", "archived"] as const)
     .filter((s) => canPublish || s !== "published" || product?.status === "published")
     .map((s) => ({ value: s, label: t.enums.productStatus[s] }));

@@ -18,9 +18,10 @@ export default async function VerificationReviewPage({ params }: PageProps<"/[lo
   const supabase = await createClient();
   const { data: v } = await supabase.from("supplier_verifications").select("*, companies(id, name, name_ar, country_code, city, business_type, website)").eq("id", id).maybeSingle();
   if (!v) notFound();
-  const [{ data: docs }, { data: legal }, ref] = await Promise.all([
+  const [{ data: docs }, { data: legal }, { data: note }, ref] = await Promise.all([
     supabase.from("verification_documents").select("*").eq("verification_id", id).order("created_at"),
     supabase.from("company_legal").select("*").eq("company_id", v.company_id).maybeSingle(),
+    supabase.from("verification_internal_notes").select("notes").eq("verification_id", id).maybeSingle(),
     getReference(),
   ]);
   const V = t.admin.verifications;
@@ -52,7 +53,7 @@ export default async function VerificationReviewPage({ params }: PageProps<"/[lo
           <SelectField name="status" label={V.decision} required defaultValue="approved"
             options={(["approved", "needs_documents", "rejected", "under_review"] as const).map((s) => ({ value: s, label: t.enums.verificationStatus[s] }))} />
           <TextArea name="message" label={V.message} rows={3} maxLength={2000} defaultValue={v.message_to_company ?? undefined} />
-          <TextArea name="internal_notes" label={V.internal} rows={2} maxLength={4000} defaultValue={v.internal_notes ?? undefined} />
+          <TextArea name="internal_notes" label={V.internal} rows={2} maxLength={4000} defaultValue={note?.notes ?? undefined} />
           <SubmitButton>{V.record}</SubmitButton>
         </ActionForm>
       </Section>
