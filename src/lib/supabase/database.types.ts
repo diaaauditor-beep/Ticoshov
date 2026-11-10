@@ -1047,6 +1047,14 @@ isOneToOne: false
 "admin_dashboard_stats":
 { Args: { "p_category"?: string,"p_country"?: string,"p_from"?: string,"p_status"?: Database["public"]['Enums']["deal_status"],"p_supplier"?: string,"p_to"?: string }; Returns: Json
                            },
+"admin_list_users":
+{ Args: { "p_role"?: Database["public"]['Enums']["user_role"],"p_search"?: string }; Returns: {
+              "company_id": string,"company_name": string,"created_at": string,"email": string,"email_confirmed": boolean,"full_name": string,"id": string,"is_active": boolean,"last_sign_in_at": string,"role": Database["public"]['Enums']["user_role"]
+            }[]
+                           },
+"admin_set_user":
+{ Args: { "p_active": boolean,"p_role": Database["public"]['Enums']["user_role"],"p_user": string }; Returns: undefined
+                           },
 "auth_role":
 { Args: Record<PropertyKey, never>; Returns: Database["public"]['Enums']["user_role"]
                            },
@@ -1139,6 +1147,9 @@ isOneToOne: false
                            },
 "start_negotiation":
 { Args: { "p_quotation": string }; Returns: string
+                           },
+"start_verification_review":
+{ Args: { "p_verification": string }; Returns: undefined
                            },
 "submit_verification":
 { Args: { "p_company": string }; Returns: undefined
