@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:db": "node --env-file=.env.local --test tests/e2e-rls.test.mjs",
+    "test:ui": "node --env-file=.env.local tests/ui-flow.mjs",
+    "make-admin": "node --env-file=.env.local scripts/make-admin.mjs",
+    "db:types": "supabase gen types typescript --local > src/lib/supabase/database.types.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
@@ -24,6 +28,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.6",
+    "playwright": "^1.63.0",
     "supabase": "^3.1.0",
     "tailwindcss": "4.3.3",
     "typescript": "^5"

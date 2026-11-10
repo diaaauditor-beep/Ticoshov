@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { resolveLocale } from "@/i18n/get-dictionary";
 import { legalAr, legalEn } from "@/content/legal";
 import { Notice } from "@/components/ui/primitives";
+import { createClient } from "@/lib/supabase/server";
 
 const DOCS = ["terms", "privacy", "intermediary", "commission", "disputes"] as const;
 type DocKey = (typeof DOCS)[number];
@@ -21,10 +22,13 @@ export default async function LegalPage({ params }: PageProps<"/[locale]/legal/[
   const { doc } = await params;
   if (!DOCS.includes(doc as DocKey)) notFound();
   const d = (locale === "ar" ? legalAr : legalEn)[doc as DocKey];
+  const supabase = await createClient();
+  const { data: review } = await supabase.from("platform_settings").select("value").eq("key", "legal_review_status").maybeSingle();
+  const approved = review?.value === "approved";
   return (
     <article className="mx-auto max-w-3xl">
       <h1 className="text-3xl font-semibold text-navy-900">{d.title}</h1>
-      <div className="mt-4"><Notice>{t.legal.reviewNotice}</Notice></div>
+      {!approved && <div className="mt-4"><Notice>{t.legal.reviewNotice}</Notice></div>}
       <div className="prose-legal card card-pad mt-6">
         {d.sections.map((s) => (
           <section key={s.h}>

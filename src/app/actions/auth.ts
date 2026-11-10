@@ -53,7 +53,8 @@ export async function signUpAction(_: ActionState, fd: FormData): Promise<Action
     password,
     options: {
       // role is restricted to supplier|buyer by the handle_new_user() database trigger
-      data: { role, full_name: fullName, locale },
+      // terms_accepted_at records click-wrap acceptance of the terms version shown at signup
+      data: { role, full_name: fullName, locale, terms_accepted_at: new Date().toISOString() },
       emailRedirectTo: `${site()}/auth/confirm?next=/${locale}/onboarding`,
     },
   });
