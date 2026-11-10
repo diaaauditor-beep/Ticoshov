@@ -472,7 +472,9 @@ begin
   return v_deal;
 end $$;
 
-create or replace function public.accept_quotation(p_quotation uuid, p_note text default null)
+-- p_expected_revision: the quotation revision the buyer was looking at. If the supplier revised
+-- the quotation in the meantime, acceptance is refused so the buyer never accepts unseen terms.
+create or replace function public.accept_quotation(p_quotation uuid, p_note text default null, p_expected_revision integer default null)
 returns uuid language plpgsql security definer set search_path = '' as $$
 declare
   v_q record;
@@ -489,6 +491,9 @@ begin
   if not public.is_company_member(v_q.buyer_company_id) then raise exception 'Not allowed' using errcode = '42501'; end if;
   if v_q.status not in ('submitted', 'negotiating') then
     raise exception 'Quotation is not open for acceptance' using errcode = '22023';
+  end if;
+  if p_expected_revision is not null and v_q.revision <> p_expected_revision then
+    raise exception 'Quotation was revised: review the new terms before accepting' using errcode = '40001';
   end if;
   if v_q.valid_until < current_date then
     update public.quotations set status = 'expired' where id = p_quotation;

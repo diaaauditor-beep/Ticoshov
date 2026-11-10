@@ -16,7 +16,7 @@ Nothing here was run against a cloud Supabase project or Vercel.
 | `npm run lint` | ✅ no errors, no warnings |
 | `npm run build` | ✅ all routes compile |
 | `npx supabase db reset` (all 9 migrations from scratch) | ✅ |
-| `npm run test:db`: 14 database/RLS workflow tests | ✅ 14 / 14 |
+| `npm run test:db`: 15 database/RLS workflow tests | ✅ 15 / 15 |
 | `npm run test:ui`: 14-step browser journey | ✅ 14 / 14 |
 | `scripts/make-admin.mjs` | ✅ (exercised by the UI test) |
 | `scripts/seed-demo.mjs` (create, re-run, `--remove`) | ✅ |
@@ -89,6 +89,14 @@ to create test users and to check the resulting state.
     - Stats are staff-only; the audit log is written and readable only by admins.
     - Operations staff cannot change settings, and an admin cannot demote themselves.
 
+15. **Tampering.**
+    - Parties cannot change a deal's value or a commission's rate, amount or status by writing to the tables directly.
+    - Suppliers and operations staff cannot create commission rules, and nobody can forge deal history.
+    - Accepted quotations and their line items are frozen.
+    - A reported commission payment of any size counts for nothing until an admin confirms it.
+    - One party declaring payment twice does not confirm it, and production cannot start before both parties have declared.
+    - **A buyer cannot accept a quotation the supplier revised after the buyer last saw it** (see defect 7).
+
 ## What the browser test proves (`tests/ui-flow.mjs`)
 
 1. A supplier signs up (EN UI) and the confirmation email arrives in Mailpit.
@@ -118,6 +126,7 @@ AR deal page, the EN admin overview, search, the verification page and mobile.
 | 3 | High | RFQ creation failed: the SELECT policy re-read the table, so `INSERT … RETURNING` was rejected. | The policy now evaluates the row's own columns, plus a `my_company_quoted()` helper to avoid policy recursion. |
 | 4 | Low | `refresh_overdue_commissions()` could be called by any signed-in user (it was harmless, but unintended). | Restricted to staff or a scheduler with no user session. |
 | 5 | Low | 7 lint errors: a `ref` prop name and `Date.now()` during render. | Prop renamed to `reference`; date helpers moved to `lib/format`. |
+| 7 | High | During negotiation, a supplier could revise the price just before the buyer clicked accept, so the buyer could accept terms they had not seen. | Acceptance now carries the revision the buyer saw. If it changed, acceptance is refused and the page shows the new terms. Covered by test 15. |
 | 6 | Medium | On phones narrower than about 400 px, the header and long supplier names overflowed the screen, and the browser zoomed the whole page out. | The header is compact on small screens (sign-up moves into the menu), cards can shrink, and the browser test now checks 320 and 390 px. |
 
 ## Not tested (honest gaps)

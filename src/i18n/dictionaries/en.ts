@@ -109,6 +109,7 @@ const en = {
     alreadyHasCompany: "Your account already belongs to a company.",
     needDocuments: "Upload at least one verification document before submitting.",
     quotationExpired: "This quotation has expired.",
+    quotationRevised: "The supplier revised this quotation. Please review the new terms before accepting.",
     rfqClosed: "This RFQ is no longer open.",
     validityPast: "The validity date must be today or later.",
     duplicate: "This record already exists.",

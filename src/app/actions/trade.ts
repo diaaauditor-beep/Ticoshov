@@ -123,7 +123,12 @@ export async function withdrawQuotationAction(_: ActionState, fd: FormData): Pro
 export async function acceptQuotationAction(_: ActionState, fd: FormData): Promise<ActionState> {
   const locale = localeOf(fd);
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("accept_quotation", { p_quotation: str(fd, "id"), p_note: str(fd, "note") || undefined });
+  const revision = Number(str(fd, "revision"));
+  const { data, error } = await supabase.rpc("accept_quotation", {
+    p_quotation: str(fd, "id"), p_note: str(fd, "note") || undefined,
+    p_expected_revision: Number.isInteger(revision) && revision > 0 ? revision : undefined,
+  });
+  if (error && /revised/i.test(error.message)) refresh();
   if (error) return { error: errorKey(error) };
   redirect(`/${locale}/dashboard/deals/${data}`);
 }

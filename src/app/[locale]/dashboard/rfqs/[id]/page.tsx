@@ -115,7 +115,7 @@ export default async function RfqDetailPage({ params }: PageProps<"/[locale]/das
                             {deal && <Link href={`/${locale}/dashboard/deals/${deal.id}`} className="btn btn-primary btn-sm">{t.quote.openDeal}</Link>}
                             {open && rfq.status === "open" && (
                               <>
-                                <ActionButton action={acceptQuotationAction} hidden={{ id: q.id, locale }} errors={t.errors} confirm={t.quote.acceptConfirm} className="btn btn-accent btn-sm">{t.quote.accept}</ActionButton>
+                                <ActionButton action={acceptQuotationAction} hidden={{ id: q.id, locale, revision: String(q.revision) }} errors={t.errors} confirm={t.quote.acceptConfirm} className="btn btn-accent btn-sm">{t.quote.accept}</ActionButton>
                                 {q.status === "submitted" && <ActionButton action={startNegotiationAction} hidden={{ id: q.id, locale }} errors={t.errors}>{t.quote.negotiate}</ActionButton>}
                                 <ActionButton action={rejectQuotationAction} hidden={{ id: q.id }} errors={t.errors} confirm={t.quote.rejectConfirm} className="btn btn-ghost btn-sm text-red-600">{t.quote.reject}</ActionButton>
                               </>

@@ -103,7 +103,7 @@ export async function DealView({ dealId, viewer, t, locale, staffBase }: {
         <p className="text-sm text-slate-700">{t.deal.whatNow[status]}</p>
         <div className="mt-4 flex flex-wrap items-start gap-2">
           {status === "negotiation" && isBuyer && q && (
-            <ActionButton action={acceptQuotationAction} hidden={{ id: q.id, locale }} errors={t.errors} confirm={t.quote.acceptConfirm} className="btn btn-accent">{t.quote.accept}</ActionButton>
+            <ActionButton action={acceptQuotationAction} hidden={{ id: q.id, locale, revision: String(q.revision) }} errors={t.errors} confirm={t.quote.acceptConfirm} className="btn btn-accent">{t.quote.accept}</ActionButton>
           )}
           {status === "negotiation" && isSupplier && d.rfqs && (
             <Link href={`/${locale}/dashboard/rfqs/${d.rfqs.id}`} className="btn btn-secondary">{t.quote.update}</Link>

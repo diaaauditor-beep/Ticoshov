@@ -4,6 +4,7 @@ const known: Array<[RegExp, string]> = [
   [/already belong to a company/i, "alreadyHasCompany"],
   [/upload at least one document/i, "needDocuments"],
   [/quotation has expired/i, "quotationExpired"],
+  [/quotation was revised/i, "quotationRevised"],
   [/rfq is no longer open/i, "rfqClosed"],
   [/validity date is in the past/i, "validityPast"],
   [/duplicate key|already exists|23505/i, "duplicate"],

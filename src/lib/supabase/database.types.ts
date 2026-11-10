@@ -1062,7 +1062,7 @@ isOneToOne: false
           }
           Functions: {
             "accept_quotation":
-{ Args: { "p_note"?: string,"p_quotation": string }; Returns: string
+{ Args: { "p_expected_revision"?: number,"p_note"?: string,"p_quotation": string }; Returns: string
                            },
 "admin_dashboard_stats":
 { Args: { "p_category"?: string,"p_country"?: string,"p_from"?: string,"p_status"?: Database["public"]['Enums']["deal_status"],"p_supplier"?: string,"p_to"?: string }; Returns: Json

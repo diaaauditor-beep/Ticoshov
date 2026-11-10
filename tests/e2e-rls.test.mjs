@@ -365,3 +365,51 @@ test("admin: dashboard stats, audit log, settings are staff-only", async () => {
   assert.equal(p.is_active, false);
   denied(await ctx.admin.client.rpc("admin_set_user", { p_user: ctx.admin.id, p_role: "buyer", p_active: true }), "admins cannot demote themselves");
 });
+
+test("tampering: deal value, commission, accepted quotes and payment confirmation cannot be manipulated", async () => {
+  const deal0 = ok(await svc.from("deals").select("deal_value, status").eq("id", ctx.deal).single());
+  const com0 = ok(await svc.from("commissions").select("rate, amount, amount_paid, status").eq("id", ctx.commission).single());
+
+  // direct writes to deals / commissions are filtered out for parties
+  await ctx.supplier.client.from("deals").update({ deal_value: 1 }).eq("id", ctx.deal);
+  await ctx.buyer.client.from("deals").update({ deal_value: 1, buyer_payment_declared_at: null }).eq("id", ctx.deal);
+  await ctx.supplier.client.from("commissions").update({ rate: 0, amount: 0, status: "waived" }).eq("id", ctx.commission);
+  denied(await ctx.supplier.client.from("commissions").insert({ deal_id: ctx.deal, deal_value: 1, rate: 0, amount: 0, currency_code: "USD", supplier_company_id: ctx.supCo, buyer_company_id: ctx.buyCo }));
+  denied(await ctx.supplier.client.from("commission_rules").insert({ scope: "supplier", supplier_company_id: ctx.supCo, rate: 0 }), "suppliers cannot set their own rate");
+  denied(await ctx.ops.client.from("commission_rules").insert({ scope: "supplier", supplier_company_id: ctx.supCo, rate: 0 }), "operations cannot set rates");
+  denied(await ctx.supplier.client.from("deal_status_history").insert({ deal_id: ctx.deal, to_status: "completed" }));
+  const deal1 = ok(await svc.from("deals").select("deal_value, status").eq("id", ctx.deal).single());
+  const com1 = ok(await svc.from("commissions").select("rate, amount, amount_paid, status").eq("id", ctx.commission).single());
+  assert.deepEqual(deal1, deal0, "deal unchanged");
+  assert.deepEqual(com1, com0, "commission unchanged");
+
+  // an accepted quotation and its line items are frozen
+  denied(await ctx.supplier.client.from("quotations").update({ unit_price: 1 }).eq("id", ctx.q1), "accepted quote cannot be edited");
+  const items = await ctx.supplier.client.from("quotation_items").insert({ quotation_id: ctx.q1, description: "sneaky", quantity: 1, unit_price: 1 });
+  denied(items, "no new items on an accepted quote");
+  assert.equal(Number(ok(await svc.from("quotations").select("total_amount").eq("id", ctx.q1).single()).total_amount), 7250);
+
+  // a commission payment report does not count until an admin confirms it
+  const today = new Date().toISOString().slice(0, 10);
+  const big = ok(await ctx.supplier.client.from("commission_payments").insert({ commission_id: ctx.commission, amount: 999999, paid_on: today }).select("id, status").single());
+  assert.equal(big.status, "submitted");
+  await ctx.supplier.client.from("commission_payments").update({ status: "confirmed" }).eq("id", big.id);
+  assert.equal(ok(await svc.from("commission_payments").select("status").eq("id", big.id).single()).status, "submitted");
+
+  // payment confirmation needs BOTH parties: one party declaring twice is not enough
+  const rfq = ok(await ctx.buyer.client.from("rfqs").insert({ buyer_company_id: ctx.buyCo, title: "Khimar order", description: "Jersey khimar, 6 colours", category_id: ctx.category, quantity: 300, unit_code: "piece", delivery_country: "SA", currency_code: "USD" }).select("id").single()).id;
+  const until = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
+  const q = ok(await ctx.supplier.client.from("quotations").insert({ rfq_id: rfq, supplier_company_id: ctx.supCo, unit_price: 5, quantity: 300, total_amount: 0, currency_code: "USD", lead_time_days: 15, valid_until: until }).select("id, revision").single());
+  ok(await ctx.buyer.client.rpc("start_negotiation", { p_quotation: q.id }));
+  // supplier revises while the buyer is looking at revision 1 → stale acceptance refused
+  ok(await ctx.supplier.client.from("quotations").update({ unit_price: 9 }).eq("id", q.id));
+  denied(await ctx.buyer.client.rpc("accept_quotation", { p_quotation: q.id, p_expected_revision: q.revision }), "stale revision must be refused");
+  ok(await ctx.buyer.client.rpc("accept_quotation", { p_quotation: q.id, p_expected_revision: q.revision + 1 }));
+  const d2 = ok(await svc.from("deals").select("id, deal_value").eq("quotation_id", q.id).single());
+  assert.equal(Number(d2.deal_value), 2700);
+  ok(await ctx.supplier.client.rpc("declare_payment", { p_deal: d2.id }));
+  ok(await ctx.supplier.client.rpc("declare_payment", { p_deal: d2.id }));
+  assert.equal(ok(await svc.from("deals").select("status").eq("id", d2.id).single()).status, "awaiting_payment_confirmation");
+  // and the supplier cannot jump to production without the buyer's declaration
+  denied(await ctx.supplier.client.rpc("update_deal_status", { p_deal: d2.id, p_to: "production" }));
+});
