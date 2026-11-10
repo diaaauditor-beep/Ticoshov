@@ -162,14 +162,14 @@ export default async function LandingPage({ params }: PageProps<"/[locale]">) {
           <h2 className="text-3xl font-semibold text-navy-900">{L.verifiedTitle}</h2>
           <p className="mt-2 text-slate-600">{L.verifiedText}</p>
           {suppliers && suppliers.length > 0 ? (
-            <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {suppliers.map((s) => (
-                <Link key={s.id} href={`/${locale}/companies/${s.slug}`} className="card flex items-center gap-4 p-4 hover:border-navy-300">
+                <Link key={s.id} href={`/${locale}/companies/${s.slug}`} className="card flex min-w-0 items-center gap-4 p-4 hover:border-navy-300">
                   {s.logo_path ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={publicUrl(s.logo_path)!} alt="" className="size-12 rounded-md border border-slate-200 object-contain" />
+                    <img src={publicUrl(s.logo_path)!} alt="" className="size-12 shrink-0 rounded-md border border-slate-200 object-contain" />
                   ) : (
-                    <span className="grid size-12 place-items-center rounded-md bg-navy-900 text-lg font-semibold text-brass-300">{s.name.charAt(0)}</span>
+                    <span className="grid size-12 shrink-0 place-items-center rounded-md bg-navy-900 text-lg font-semibold text-brass-300">{s.name.charAt(0)}</span>
                   )}
                   <div className="min-w-0">
                     <p className="truncate font-semibold text-navy-900">{loc(locale, s.name_ar, s.name)}</p>

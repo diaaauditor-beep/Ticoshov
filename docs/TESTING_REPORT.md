@@ -104,7 +104,7 @@ to create test users and to check the resulting state.
 11. The supplier submits a quotation (total 7,250).
 12. The buyer accepts it from the comparison table, a deal is created, and its `TCS-…` reference is shown.
 13. The commission (362.50) appears on the supplier's commissions page.
-14. On a 390 px mobile viewport, the Arabic landing page has no horizontal overflow.
+14. No horizontal overflow in real mobile emulation at 320 px and 390 px, for the AR and EN landing, products and register pages.
 
 Screenshots are written to `tests/screenshots/` (gitignored). They were reviewed manually for the
 AR deal page, the EN admin overview, search, the verification page and mobile.
@@ -118,6 +118,7 @@ AR deal page, the EN admin overview, search, the verification page and mobile.
 | 3 | High | RFQ creation failed: the SELECT policy re-read the table, so `INSERT … RETURNING` was rejected. | The policy now evaluates the row's own columns, plus a `my_company_quoted()` helper to avoid policy recursion. |
 | 4 | Low | `refresh_overdue_commissions()` could be called by any signed-in user (it was harmless, but unintended). | Restricted to staff or a scheduler with no user session. |
 | 5 | Low | 7 lint errors: a `ref` prop name and `Date.now()` during render. | Prop renamed to `reference`; date helpers moved to `lib/format`. |
+| 6 | Medium | On phones narrower than about 400 px, the header and long supplier names overflowed the screen, and the browser zoomed the whole page out. | The header is compact on small screens (sign-up moves into the menu), cards can shrink, and the browser test now checks 320 and 390 px. |
 
 ## Not tested (honest gaps)
 

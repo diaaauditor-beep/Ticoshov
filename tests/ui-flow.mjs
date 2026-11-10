@@ -203,12 +203,15 @@ try {
     await S.getByText(/362\.50/).first().waitFor({ timeout: 10000 });
   });
 
-  await step("mobile layout renders (AR landing + dashboard)", async () => {
-    const m = await (await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1 })).newPage();
-    await m.goto(`${APP}/ar`);
-    const overflow = await m.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-    if (overflow > 1) throw new Error(`horizontal overflow ${overflow}px on mobile landing`);
-    await shot(m, "landing-mobile-ar");
+  await step("mobile layout has no horizontal overflow (320/390px, AR+EN)", async () => {
+    for (const width of [320, 390]) for (const path of ["/ar", "/en", "/ar/products", "/en/register"]) {
+      const m = await (await browser.newContext({ viewport: { width, height: 844 }, isMobile: true, hasTouch: true })).newPage();
+      await m.goto(`${APP}${path}`, { waitUntil: "networkidle" });
+      const overflow = await m.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      if (overflow > 1) throw new Error(`horizontal overflow ${overflow}px at ${width}px on ${path}`);
+      if (width === 390 && path === "/ar") await shot(m, "landing-mobile-ar");
+      await m.context().close();
+    }
   });
 } catch {
   // the failing step was already reported
