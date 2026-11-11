@@ -67,11 +67,13 @@ const browser = await chromium.launch();
 const supplierEmail = `ui-supplier-${run}@test.local`;
 const buyerEmail = `ui-buyer-${run}@test.local`;
 const adminEmail = `ui-admin-${run}@test.local`;
+const providerEmail = `ui-broker-${run}@test.local`;
 const ctxS = await browser.newContext({ viewport: { width: 1360, height: 900 } });
 const ctxB = await browser.newContext({ viewport: { width: 1360, height: 900 } });
 const ctxA = await browser.newContext({ viewport: { width: 1360, height: 900 } });
-const S = await ctxS.newPage(), B = await ctxB.newPage(), A = await ctxA.newPage();
-Object.assign(pages, { supplier: S, buyer: B, admin: A });
+const ctxP = await browser.newContext({ viewport: { width: 1360, height: 900 } });
+const S = await ctxS.newPage(), B = await ctxB.newPage(), A = await ctxA.newPage(), P = await ctxP.newPage();
+Object.assign(pages, { supplier: S, buyer: B, admin: A, provider: P });
 let rfqUrl, dealUrl;
 
 try {
@@ -203,8 +205,81 @@ try {
     await S.getByText(/362\.50/).first().waitFor({ timeout: 10000 });
   });
 
+  await step("customs broker signs up (AR), onboards and submits verification", async () => {
+    await P.goto(`${APP}/ar/register?role=service_provider`);
+    await P.fill('[name="full_name"]', "مخلص جمركي");
+    await P.fill('[name="email"]', providerEmail);
+    await P.fill('[name="password"]', PW);
+    await P.fill('[name="password_confirm"]', PW);
+    await P.check('[name="role"][value="service_provider"]', { force: true });
+    await P.check('[name="terms"]');
+    await Promise.all([P.waitForURL(/check-email/, { timeout: 20000 }), P.click('form button[type="submit"]')]);
+    await P.goto(await confirmLink(providerEmail));
+    await P.waitForURL(/onboarding/, { timeout: 20000 });
+    const types = await P.locator('[name="business_type"] option').allTextContents();
+    if (!types.some((x) => x.includes("مخلص جمركي")) || types.some((x) => x.includes("مصنع"))) throw new Error(`unexpected business types: ${types.join(", ")}`);
+    if (await P.locator('[name="category_ids"]').count()) throw new Error("providers should not pick product categories");
+    await P.fill('[name="name"]', `Jeddah Clearing ${run}`);
+    await P.selectOption('[name="country_code"]', "SA");
+    await P.fill('[name="city"]', "Jeddah");
+    await P.selectOption('[name="business_type"]', "customs_broker");
+    await P.fill('[name="commercial_registration_no"]', "CR-5566");
+    await P.locator('[name="export_markets"][value="EG"]').check();
+    await Promise.all([P.waitForURL(/verification/, { timeout: 20000 }), P.click('form button[type="submit"]')]);
+    await P.selectOption('[name="doc_type"]', "customs_license");
+    await P.setInputFiles('[name="file"]', { name: "license.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\n% licence\n") });
+    await P.locator('[name="file"]').locator("xpath=ancestor::form").locator('button[type="submit"]').click();
+    await P.getByText("license.pdf").waitFor({ timeout: 15000 });
+    await P.getByRole("button", { name: "إرسال للمراجعة" }).click();
+    await P.getByText(/قيد/).first().waitFor({ timeout: 15000 });
+  });
+
+  await step("admin approves the broker; it appears in the public directory", async () => {
+    await A.goto(`${APP}/en/admin/verifications`);
+    await A.getByText(`Jeddah Clearing ${run}`).click();
+    await A.waitForURL(/verifications\/[0-9a-f-]{36}/);
+    await A.selectOption('[name="status"]', "approved");
+    await A.locator('[name="internal_notes"]').locator("xpath=ancestor::form").locator('button[type="submit"]').click();
+    await A.getByText(/approved/i).first().waitFor({ timeout: 15000 });
+    const anon = await (await browser.newContext()).newPage();
+    await anon.goto(`${APP}/ar/service-providers?country=EG`);
+    await anon.getByText(`Jeddah Clearing ${run}`).first().waitFor({ timeout: 10000 });
+    await shot(anon, "providers-directory-ar");
+    await anon.context().close();
+  });
+
+  await step("buyer adds the broker to the deal", async () => {
+    await B.goto(dealUrl);
+    await B.selectOption('[name="provider_id"]', { label: new RegExp(`Jeddah Clearing ${run}`) }).catch(async () => {
+      const opt = B.locator('[name="provider_id"] option', { hasText: `Jeddah Clearing ${run}` });
+      await B.selectOption('[name="provider_id"]', await opt.getAttribute("value"));
+    });
+    await B.fill('[name="note"]', "التخليص في ميناء جدة الإسلامي");
+    await B.locator('[name="provider_id"]').locator("xpath=ancestor::form").locator('button[type="submit"]').click();
+    await B.locator("li", { hasText: `Jeddah Clearing ${run}` }).getByRole("button", { name: "إزالة" }).waitFor({ timeout: 15000 });
+    await shot(B, "buyer-deal-provider-ar");
+  });
+
+  await step("broker sees only the clearing view of the deal and uploads a customs document", async () => {
+    await P.goto(`${APP}/ar/dashboard/deals`);
+    await P.getByText(/TCS-\d{4}-\d{6}/).first().click();
+    await P.waitForURL(/deals\/[0-9a-f-]{36}/, { timeout: 20000 });
+    await P.getByText("التخليص في ميناء جدة الإسلامي").waitFor({ timeout: 10000 });
+    const body = await P.locator("main").innerText();
+    for (const secret of ["7,250", "٧٬٢٥٠", "362", "العمولة", "14.50"]) {
+      if (body.includes(secret)) throw new Error(`provider view leaks "${secret}"`);
+    }
+    await P.selectOption('[name="doc_type"]', "customs_document");
+    await P.setInputFiles('[name="file"]', { name: "declaration.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\n% customs\n") });
+    await P.locator('[name="file"]').locator("xpath=ancestor::form").locator('button[type="submit"]').click();
+    await P.getByText("declaration.pdf").waitFor({ timeout: 15000 });
+    await shot(P, "provider-deal-ar");
+    await B.goto(dealUrl);
+    await B.getByText("declaration.pdf").waitFor({ timeout: 10000 });
+  });
+
   await step("mobile layout has no horizontal overflow (320/390px, AR+EN)", async () => {
-    for (const width of [320, 390]) for (const path of ["/ar", "/en", "/ar/products", "/en/register"]) {
+    for (const width of [320, 390]) for (const path of ["/ar", "/en", "/ar/products", "/en/register", "/ar/service-providers", "/ar/register"]) {
       const m = await (await browser.newContext({ viewport: { width, height: 844 }, isMobile: true, hasTouch: true })).newPage();
       await m.goto(`${APP}${path}`, { waitUntil: "networkidle" });
       const overflow = await m.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);

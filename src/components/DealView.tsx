@@ -12,7 +12,7 @@ import { Conversation } from "@/components/Conversation";
 import { FileList } from "@/components/FileList";
 import { formatDate, formatMoney, formatNumber, loc } from "@/lib/format";
 import {
-  acceptQuotationAction, declarePaymentAction, openDisputeAction, reportCommissionPaymentAction, saveShipmentAction,
+  acceptQuotationAction, addDealProviderAction, declarePaymentAction, removeDealProviderAction, openDisputeAction, reportCommissionPaymentAction, saveShipmentAction,
   submitReviewAction, updateDealStatusAction, uploadTradeDocAction,
 } from "@/app/actions/trade";
 
@@ -42,6 +42,9 @@ export async function DealView({ dealId, viewer, t, locale, staffBase }: {
     supabase.from("conversations").select("id").eq("deal_id", dealId).maybeSingle(),
     supabase.from("trade_document_requirements").select("*"),
   ]);
+  const { data: assignments } = await supabase.from("deal_service_providers")
+    .select("id, service, note, status, created_at, added_by_company_id, provider:companies!deal_service_providers_provider_company_id_fkey(id, slug, name, name_ar, business_type)")
+    .eq("deal_id", dealId).eq("status", "active").order("created_at");
   const o = options(ref, locale);
   const myCompany = viewer.company?.id ?? null;
   const isBuyer = myCompany === d.buyer_company_id;
@@ -222,6 +225,11 @@ export async function DealView({ dealId, viewer, t, locale, staffBase }: {
         )}
       </Section>
 
+      {/* Customs & shipping providers */}
+      <ProvidersSection t={t} locale={locale} dealId={d.id} canManage={(isBuyer || isSupplier) && !closed && status !== "negotiation"}
+        canRemove={isBuyer || isSupplier || staff} assignments={(assignments ?? []) as unknown as Assignment[]}
+        partyName={(cid) => cid === d.buyer_company_id ? t.common.buyer : cid === d.supplier_company_id ? t.common.supplier : "—"} />
+
       {/* Commission */}
       {showCommission && comm && (
         <Section title={t.deal.commission}>
@@ -326,3 +334,62 @@ function CommissionPaymentForm({ t, commissionId }: { t: Dictionary; commissionI
 }
 
 export { CommissionPaymentForm };
+
+type Assignment = {
+  id: string; service: string; note: string | null; created_at: string; added_by_company_id: string;
+  provider: { id: string; slug: string; name: string; name_ar: string | null; business_type: string } | null;
+};
+
+async function ProvidersSection({ t, locale, dealId, canManage, canRemove, assignments, partyName }: {
+  t: Dictionary; locale: Locale; dealId: string; canManage: boolean; canRemove: boolean; assignments: Assignment[];
+  partyName: (companyId: string) => string;
+}) {
+  const P = t.providers;
+  let choices: Array<{ value: string; label: string }> = [];
+  if (canManage) {
+    const supabase = await createClient();
+    const { data } = await supabase.from("companies").select("id, name, name_ar, city, business_type")
+      .eq("kind", "service_provider").eq("verification_status", "approved").eq("is_active", true).order("name").limit(300);
+    const taken = new Set(assignments.map((a) => a.provider?.id));
+    choices = (data ?? []).filter((c) => !taken.has(c.id)).map((c) => ({
+      value: c.id,
+      label: `${loc(locale, c.name_ar, c.name)} · ${t.enums.businessType[c.business_type as keyof typeof t.enums.businessType] ?? ""} · ${c.city}`,
+    }));
+  }
+  return (
+    <Section title={P.sectionTitle}>
+      <p className="mb-4 text-sm text-slate-600">{P.sectionText}</p>
+      {assignments.length === 0 ? <p className="text-sm text-slate-500">{P.none}</p> : (
+        <ul className="divide-y divide-slate-100 rounded-md border border-slate-200 text-sm">
+          {assignments.map((a) => (
+            <li key={a.id} className="flex flex-wrap items-start justify-between gap-3 px-3 py-2.5">
+              <div className="min-w-0">
+                <Link className="link font-medium" href={`/${locale}/companies/${a.provider?.slug}`}>{loc(locale, a.provider?.name_ar, a.provider?.name)}</Link>
+                <span className="ms-2"><Badge tone="navy">{P.services[a.service] ?? a.service}</Badge></span>
+                <p className="mt-0.5 text-xs text-slate-500">{P.addedBy}: {partyName(a.added_by_company_id)} · {formatDate(a.created_at, locale)}</p>
+                {a.note && <p className="mt-1 text-xs text-slate-600">{a.note}</p>}
+              </div>
+              {canRemove && (
+                <ActionButton action={removeDealProviderAction} hidden={{ id: a.id }} errors={t.errors} confirm={P.removeConfirm} className="btn btn-ghost btn-sm text-red-600">{P.remove}</ActionButton>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {canManage && (choices.length > 0 ? (
+        <ActionForm action={addDealProviderAction} errors={t.errors} onSuccessReset className="mt-4 grid gap-3 sm:grid-cols-[2fr_1fr] sm:items-end">
+          <input type="hidden" name="deal_id" value={dealId} />
+          <SelectField name="provider_id" label={P.provider} required options={choices} placeholder="" />
+          <SelectField name="service" label={P.service} options={Object.entries(P.services).map(([value, label]) => ({ value, label }))} defaultValue="customs_clearance" />
+          <TextField name="note" label={P.noteLabel} maxLength={1000} className="sm:col-span-2" />
+          <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
+            <SubmitButton className="btn btn-secondary">{P.add}</SubmitButton>
+            <Link href={`/${locale}/service-providers`} className="link text-sm" target="_blank">{P.browse}</Link>
+          </div>
+        </ActionForm>
+      ) : assignments.length === 0 && (
+        <p className="mt-3 text-sm text-slate-500">{P.noVerified}</p>
+      ))}
+    </Section>
+  );
+}

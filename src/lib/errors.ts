@@ -17,6 +17,9 @@ const known: Array<[RegExp, string]> = [
   [/mime type|file size|payload too large|exceeded the maximum/i, "fileRejected"],
   [/not yet open in this country|country is not available/i, "countryUnavailable"],
   [/dispute already exists/i, "disputeExists"],
+  [/only verified service providers/i, "providerNotVerified"],
+  [/service providers can be added after/i, "providerStage"],
+  [/business type does not match/i, "businessTypeMismatch"],
 ];
 
 export function errorKey(err: unknown): string {

@@ -21,11 +21,16 @@ export function CheckboxGroup({ name, items, selected, columns = "sm:grid-cols-3
   );
 }
 
-export function CompanyFields({ t, locale, reference, d = {}, selectedCategories = [] }: {
-  t: Dictionary; locale: Locale; reference: Reference; d?: Defaults; selectedCategories?: string[];
+export const PROVIDER_TYPES = ["customs_broker", "freight_forwarder", "logistics_provider", "inspection_agency"];
+
+export function CompanyFields({ t, locale, reference, d = {}, selectedCategories = [], kind = "supplier" }: {
+  t: Dictionary; locale: Locale; reference: Reference; d?: Defaults; selectedCategories?: string[]; kind?: string;
 }) {
+  const provider = kind === "service_provider";
   const o = options(reference, locale);
-  const businessTypes = Object.entries(t.enums.businessType).map(([value, label]) => ({ value, label }));
+  const businessTypes = Object.entries(t.enums.businessType)
+    .filter(([value]) => PROVIDER_TYPES.includes(value) === provider)
+    .map(([value, label]) => ({ value, label }));
   const v = (k: string) => (d[k] == null ? undefined : String(d[k]));
   const arr = (k: string) => (Array.isArray(d[k]) ? (d[k] as string[]) : []);
   const allCategories = reference.categories.filter((c) => c.is_active).map((c) => ({
@@ -49,20 +54,29 @@ export function CompanyFields({ t, locale, reference, d = {}, selectedCategories
         <TextArea name="description" label={t.company.description} defaultValue={v("description")} maxLength={4000} dir="ltr" />
         <TextArea name="description_ar" label={t.company.descriptionAr} defaultValue={v("description_ar")} maxLength={4000} dir="rtl" />
         <FileField name="logo" label={t.company.logo} hint={t.company.logoHint} accept="image/png,image/jpeg,image/webp" />
-        <div>
-          <p className="label">{t.company.categories}</p>
-          <CheckboxGroup name="category_ids" items={allCategories} selected={selectedCategories} />
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
+        {provider ? (
           <div>
-            <p className="label">{t.company.exportMarkets}</p>
-            <CheckboxGroup name="export_markets" items={o.allCountries} selected={arr("export_markets")} columns="sm:grid-cols-2" />
+            <p className="label">{t.providers.countriesServed}</p>
+            <CheckboxGroup name="export_markets" items={o.allCountries} selected={arr("export_markets")} columns="sm:grid-cols-3" />
           </div>
-          <div>
-            <p className="label">{t.company.importMarkets}</p>
-            <CheckboxGroup name="import_markets" items={o.allCountries} selected={arr("import_markets")} columns="sm:grid-cols-2" />
-          </div>
-        </div>
+        ) : (
+          <>
+            <div>
+              <p className="label">{t.company.categories}</p>
+              <CheckboxGroup name="category_ids" items={allCategories} selected={selectedCategories} />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <p className="label">{t.company.exportMarkets}</p>
+                <CheckboxGroup name="export_markets" items={o.allCountries} selected={arr("export_markets")} columns="sm:grid-cols-2" />
+              </div>
+              <div>
+                <p className="label">{t.company.importMarkets}</p>
+                <CheckboxGroup name="import_markets" items={o.allCountries} selected={arr("import_markets")} columns="sm:grid-cols-2" />
+              </div>
+            </div>
+          </>
+        )}
       </fieldset>
       <fieldset className="space-y-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
         <legend className="px-1 text-sm font-semibold text-navy-900">{t.onboarding.privateInfo}</legend>

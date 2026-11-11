@@ -49,7 +49,7 @@ export async function createCompanyAction(_: ActionState, fd: FormData): Promise
     } catch { /* logo is optional — the company is created; it can be added later */ }
   }
   const { data: profile } = await supabase.from("profiles").select("role").single();
-  redirect(`/${locale}/dashboard${profile?.role === "supplier" ? "/verification?welcome=1" : "?welcome=1"}`);
+  redirect(`/${locale}/dashboard${profile?.role === "supplier" || profile?.role === "service_provider" ? "/verification?welcome=1" : "?welcome=1"}`);
 }
 
 export async function updateCompanyAction(_: ActionState, fd: FormData): Promise<ActionState> {

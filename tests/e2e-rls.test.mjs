@@ -413,3 +413,125 @@ test("tampering: deal value, commission, accepted quotes and payment confirmatio
   // and the supplier cannot jump to production without the buyer's declaration
   denied(await ctx.supplier.client.rpc("update_deal_status", { p_deal: d2.id, p_to: "production" }));
 });
+
+// ---------------------------------------------------------------- service providers (customs brokers)
+test("service providers: verified, added per deal, see only clearing data, removable", async () => {
+  const broker = await makeUser("broker", "service_provider");
+  const broker2 = await makeUser("broker2", "service_provider");
+  assert.equal(ok(await svc.from("profiles").select("role").eq("id", broker.id).single()).role, "service_provider");
+  const providerCompany = (u, name, type = "customs_broker") => u.client.rpc("create_company", {
+    p_name: name, p_name_ar: null, p_country: "SA", p_city: "Jeddah", p_business_type: type, p_description: null,
+    p_description_ar: null, p_website: null, p_year_established: null, p_cr_number: "CR-77", p_tax_number: null,
+    p_contact_name: null, p_contact_email: null, p_contact_phone: null, p_address: null, p_category_ids: null, p_export_markets: null,
+  });
+  denied(await providerCompany(broker, "Wrong Type Co", "manufacturer"), "providers must use a service business type");
+  denied(await ctx.outsider.client.rpc("create_company", {
+    p_name: "Fake Broker", p_name_ar: null, p_country: "SA", p_city: "x", p_business_type: "customs_broker", p_description: null,
+    p_description_ar: null, p_website: null, p_year_established: null, p_cr_number: null, p_tax_number: null,
+    p_contact_name: null, p_contact_email: null, p_contact_phone: null, p_address: null, p_category_ids: null, p_export_markets: null,
+  }), "a buyer account cannot register a provider (and already has a company)");
+  const bCo = ok(await providerCompany(broker, "Jeddah Clearing Co"));
+  const b2Co = ok(await providerCompany(broker2, "Unverified Clearing"));
+  const co = ok(await svc.from("companies").select("kind, verification_status").eq("id", bCo).single());
+  assert.deepEqual(co, { kind: "service_provider", verification_status: "pending" });
+  assert.equal(rows(await anon.from("companies").select("id").eq("id", bCo)).length, 0, "unverified providers are not public");
+
+  // verification through the same staff workflow as suppliers
+  const ver = ok(await broker.client.from("supplier_verifications").select("id").eq("company_id", bCo).single());
+  const vPath = `verification/${bCo}/${crypto.randomUUID()}.pdf`;
+  ok(await broker.client.storage.from("private-files").upload(vPath, new Blob(["%PDF"], { type: "application/pdf" })));
+  ok(await broker.client.from("verification_documents").insert({ verification_id: ver.id, company_id: bCo, doc_type: "customs_license", storage_path: vPath, file_name: "license.pdf" }));
+  ok(await broker.client.rpc("submit_verification", { p_company: bCo }));
+  await broker.client.from("companies").update({ verification_status: "approved" }).eq("id", bCo);
+  assert.equal(ok(await svc.from("companies").select("verification_status").eq("id", bCo).single()).verification_status, "pending", "cannot self-approve");
+  ok(await ctx.ops.client.rpc("review_verification", { p_verification: ver.id, p_status: "approved", p_message: null, p_internal_notes: null }));
+  assert.equal(rows(await anon.from("companies").select("id").eq("id", bCo)).length, 1, "approved providers appear in the public directory");
+
+  // providers cannot act as traders
+  denied(await broker.client.from("rfqs").insert({ buyer_company_id: bCo, title: "Fake RFQ", description: "Trying to post an RFQ", category_id: ctx.category, quantity: 10, unit_code: "piece", delivery_country: "SA", currency_code: "SAR" }));
+  denied(await broker.client.from("products").insert({ company_id: bCo, title: "Fake product", category_id: ctx.category }));
+
+  // a fresh accepted deal
+  const rfq = ok(await ctx.buyer.client.from("rfqs").insert({ buyer_company_id: ctx.buyCo, title: "Niqab order", description: "Three-layer niqab, black", category_id: ctx.category, quantity: 500, unit_code: "piece", delivery_country: "SA", currency_code: "SAR" }).select("id").single()).id;
+  const until = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
+  const q = ok(await ctx.supplier.client.from("quotations").insert({ rfq_id: rfq, supplier_company_id: ctx.supCo, unit_price: 12, quantity: 500, total_amount: 0, currency_code: "SAR", lead_time_days: 10, valid_until: until }).select("id").single()).id;
+  ok(await ctx.buyer.client.rpc("accept_quotation", { p_quotation: q }));
+  const deal = ok(await svc.from("deals").select("id").eq("quotation_id", q).single()).id;
+
+  // nothing is visible before assignment
+  assert.equal(rows(await broker.client.rpc("provider_deal_summary", { p_deal: deal })).length, 0);
+  assert.equal(rows(await broker.client.from("shipments").select("id").eq("deal_id", deal)).length, 0);
+
+  const add = (u, provider, service = "customs_clearance") => u.client.rpc("add_deal_service_provider", { p_deal: deal, p_provider: provider, p_service: service, p_note: "Clear at Jeddah port" });
+  denied(await add(ctx.outsider, bCo), "non-parties cannot add providers");
+  denied(await add(broker, bCo), "a provider cannot add itself");
+  denied(await add(ctx.buyer, b2Co), "unverified providers cannot be added");
+  denied(await add(ctx.buyer, ctx.sup2Co), "only service-provider companies can be added");
+  denied(await broker.client.from("deal_service_providers").insert({ deal_id: deal, provider_company_id: bCo, service: "other", added_by_company_id: bCo }), "no direct inserts");
+  const assignment = ok(await add(ctx.buyer, bCo));
+  const notes = ok(await svc.from("notifications").select("type").eq("user_id", broker.id).eq("type", "provider_assigned"));
+  assert.equal(notes.length, 1, "the provider is notified");
+
+  // limited view
+  const sum = ok(await broker.client.rpc("provider_deal_summary", { p_deal: deal }));
+  assert.equal(sum.length, 1);
+  assert.equal(sum[0].service, "customs_clearance");
+  assert.ok(!("deal_value" in sum[0]), "the summary never includes the deal value");
+  assert.equal(rows(await broker.client.from("deals").select("id").eq("id", deal)).length, 0, "no direct access to the deals table");
+  assert.equal(rows(await broker.client.from("quotations").select("id").eq("id", q)).length, 0, "no access to the quotation");
+  assert.equal(rows(await broker.client.from("commissions").select("id").eq("deal_id", deal)).length, 0, "no access to the commission");
+  assert.equal(rows(await broker.client.from("deal_status_history").select("id").eq("deal_id", deal)).length, 0);
+  assert.equal(rows(await broker.client.from("conversations").select("id").eq("deal_id", deal)).length, 0, "no access to the parties' conversation");
+  denied(await broker.client.rpc("update_deal_status", { p_deal: deal, p_to: "cancelled" }), "providers cannot move the deal");
+  denied(await broker.client.rpc("declare_payment", { p_deal: deal, p_note: null }));
+  denied(await broker.client.rpc("open_dispute", { p_deal: deal, p_reason: "other", p_description: "Provider trying to dispute" }));
+  assert.equal(rows(await broker2.client.rpc("my_provider_deals")).length, 0, "other providers see nothing");
+
+  // documents: shipping docs visible, contracts / payment evidence not
+  ok(await ctx.buyer.client.rpc("update_deal_status", { p_deal: deal, p_to: "awaiting_payment_confirmation" }));
+  const ship = ok(await ctx.supplier.client.from("shipments").insert({ deal_id: deal, carrier: "Red Sea Line", transport_mode: "sea", origin_country: "EG", destination_country: "SA" }).select("id").single()).id;
+  const upload = async (u, company, type) => {
+    const p = `deal/${deal}/${crypto.randomUUID()}.pdf`;
+    ok(await u.client.storage.from("private-files").upload(p, new Blob(["%PDF"], { type: "application/pdf" })));
+    ok(await u.client.from("shipment_documents").insert({ deal_id: deal, doc_type: type, storage_path: p, file_name: `${type}.pdf`, company_id: company }));
+    return p;
+  };
+  const invoice = await upload(ctx.supplier, ctx.supCo, "commercial_invoice");
+  const contract = await upload(ctx.supplier, ctx.supCo, "contract");
+  const payment = await upload(ctx.buyer, ctx.buyCo, "payment_evidence");
+  const visible = rows(await broker.client.from("shipment_documents").select("doc_type").eq("deal_id", deal)).map((x) => x.doc_type);
+  assert.deepEqual(visible, ["commercial_invoice"], "providers see shipping documents only");
+  assert.ok((await broker.client.storage.from("private-files").download(invoice)).data, "and can download them");
+  denied(await broker.client.storage.from("private-files").download(contract), "contracts stay private");
+  denied(await broker.client.storage.from("private-files").download(payment), "payment evidence stays private");
+  denied(await broker2.client.storage.from("private-files").download(invoice), "unassigned providers cannot download");
+
+  const decl = await upload(broker, bCo, "customs_document");
+  assert.ok((await ctx.buyer.client.storage.from("private-files").download(decl)).data, "parties see the provider's documents");
+  const badPath = `deal/${deal}/${crypto.randomUUID()}.pdf`;
+  ok(await broker.client.storage.from("private-files").upload(badPath, new Blob(["%PDF"], { type: "application/pdf" })));
+  denied(await broker.client.from("shipment_documents").insert({ deal_id: deal, doc_type: "payment_evidence", storage_path: badPath, file_name: "x.pdf", company_id: bCo }), "providers cannot file payment evidence");
+  denied(await broker.client.from("shipment_documents").insert({ deal_id: deal, doc_type: "customs_document", storage_path: badPath, file_name: "x.pdf", company_id: ctx.supCo }), "providers cannot upload in a party's name");
+
+  // shipment status updates only through the provider RPC
+  await broker.client.from("shipments").update({ carrier: "Hijacked" }).eq("id", ship);
+  assert.equal(ok(await svc.from("shipments").select("carrier").eq("id", ship).single()).carrier, "Red Sea Line", "no direct shipment edits");
+  ok(await broker.client.rpc("provider_update_shipment", { p_shipment: ship, p_status: "at_customs" }));
+  assert.equal(ok(await svc.from("shipments").select("status").eq("id", ship).single()).status, "at_customs");
+  denied(await broker2.client.rpc("provider_update_shipment", { p_shipment: ship, p_status: "delivered" }));
+
+  // removal ends access immediately
+  denied(await ctx.outsider.client.rpc("remove_deal_service_provider", { p_assignment: assignment }));
+  ok(await ctx.supplier.client.rpc("remove_deal_service_provider", { p_assignment: assignment }));
+  assert.equal(rows(await broker.client.rpc("provider_deal_summary", { p_deal: deal })).length, 0);
+  assert.equal(rows(await broker.client.from("shipment_documents").select("id").eq("deal_id", deal)).length, 0);
+  denied(await broker.client.storage.from("private-files").download(invoice), "file access ends on removal");
+  denied(await broker.client.rpc("provider_update_shipment", { p_shipment: ship, p_status: "delivered" }));
+
+  // re-adding works; losing verification also ends access
+  ok(await add(ctx.supplier, bCo, "freight_forwarding"));
+  assert.equal(rows(await broker.client.rpc("my_provider_deals")).length, 1);
+  ok(await svc.from("companies").update({ is_active: false }).eq("id", bCo));
+  assert.equal(rows(await broker.client.rpc("my_provider_deals")).length, 0, "deactivated providers lose access");
+  assert.equal(rows(await broker.client.from("shipments").select("id").eq("deal_id", deal)).length, 0);
+});

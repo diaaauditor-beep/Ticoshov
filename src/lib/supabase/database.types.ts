@@ -355,6 +355,38 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"deal_service_providers": {
+                  Row: {
+                    "added_by": string | null,"added_by_company_id": string,"created_at": string,"deal_id": string,"id": string,"note": string | null,"provider_company_id": string,"removed_at": string | null,"removed_by": string | null,"service": string,"status": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "added_by"?: string | null,"added_by_company_id": string,"created_at"?: string,"deal_id": string,"id"?: string,"note"?: string | null,"provider_company_id": string,"removed_at"?: string | null,"removed_by"?: string | null,"service": string,"status"?: string,"updated_at"?: string
+                  }
+                  Update: {
+                    "added_by"?: string | null,"added_by_company_id"?: string,"created_at"?: string,"deal_id"?: string,"id"?: string,"note"?: string | null,"provider_company_id"?: string,"removed_at"?: string | null,"removed_by"?: string | null,"service"?: string,"status"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "deal_service_providers_added_by_company_id_fkey"
+      columns: ["added_by_company_id"]
+isOneToOne: false
+      referencedRelation: "companies"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "deal_service_providers_deal_id_fkey"
+      columns: ["deal_id"]
+isOneToOne: false
+      referencedRelation: "deals"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "deal_service_providers_provider_company_id_fkey"
+      columns: ["provider_company_id"]
+isOneToOne: false
+      referencedRelation: "companies"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"deal_status_history": {
                   Row: {
                     "changed_by": string | null,"created_at": string,"deal_id": string,"from_status": Database["public"]['Enums']["deal_status"] | null,"id": string,"note": string | null,"to_status": Database["public"]['Enums']["deal_status"]
@@ -1064,6 +1096,9 @@ isOneToOne: false
             "accept_quotation":
 { Args: { "p_expected_revision"?: number,"p_note"?: string,"p_quotation": string }; Returns: string
                            },
+"add_deal_service_provider":
+{ Args: { "p_deal": string,"p_note"?: string,"p_provider": string,"p_service": string }; Returns: string
+                           },
 "admin_dashboard_stats":
 { Args: { "p_category"?: string,"p_country"?: string,"p_from"?: string,"p_status"?: Database["public"]['Enums']["deal_status"],"p_supplier"?: string,"p_to"?: string }; Returns: Json
                            },
@@ -1108,6 +1143,9 @@ isOneToOne: false
 "is_deal_party":
 { Args: { "did": string }; Returns: boolean
                            },
+"is_deal_provider":
+{ Args: { "did": string }; Returns: boolean
+                           },
 "is_staff":
 { Args: Record<PropertyKey, never>; Returns: boolean
                            },
@@ -1122,6 +1160,14 @@ isOneToOne: false
                            },
 "my_company_quoted":
 { Args: { "rid": string }; Returns: boolean
+                           },
+"my_provider_company_for_deal":
+{ Args: { "did": string }; Returns: string
+                           },
+"my_provider_deals":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "assigned_at": string,"assignment_id": string,"buyer_country": string,"buyer_name": string,"buyer_name_ar": string,"deal_id": string,"delivery_country": string,"incoterm": string,"reference": string,"service": string,"status": Database["public"]['Enums']["deal_status"],"supplier_country": string,"supplier_name": string,"supplier_name_ar": string,"title": string,"updated_at": string
+            }[]
                            },
 "next_deal_reference":
 { Args: Record<PropertyKey, never>; Returns: string
@@ -1141,6 +1187,17 @@ isOneToOne: false
 "open_dispute":
 { Args: { "p_deal": string,"p_description": string,"p_reason": string }; Returns: string
                            },
+"provider_deal_summary":
+{ Args: { "p_deal": string }; Returns: {
+              "assigned_at": string,"assignment_id": string,"buyer_country": string,"buyer_name": string,"buyer_name_ar": string,"buyer_slug": string,"deal_id": string,"delivery_country": string,"incoterm": string,"note": string,"provider_company_id": string,"quantity": number,"reference": string,"service": string,"status": Database["public"]['Enums']["deal_status"],"supplier_country": string,"supplier_name": string,"supplier_name_ar": string,"supplier_slug": string,"title": string,"unit_code": string
+            }[]
+                           },
+"provider_update_shipment":
+{ Args: { "p_shipment": string,"p_status": Database["public"]['Enums']["shipment_status"] }; Returns: undefined
+                           },
+"provider_visible_doc":
+{ Args: { "p": Database["public"]['Enums']["trade_doc_type"] }; Returns: boolean
+                           },
 "record_deal_status":
 { Args: { "p_deal": string,"p_from": Database["public"]['Enums']["deal_status"],"p_note": string,"p_to": Database["public"]['Enums']["deal_status"] }; Returns: undefined
                            },
@@ -1149,6 +1206,9 @@ isOneToOne: false
                            },
 "reject_quotation":
 { Args: { "p_quotation": string,"p_reason": string }; Returns: undefined
+                           },
+"remove_deal_service_provider":
+{ Args: { "p_assignment": string }; Returns: undefined
                            },
 "require_auth":
 { Args: Record<PropertyKey, never>; Returns: string
@@ -1185,7 +1245,7 @@ isOneToOne: false
                            }
           }
           Enums: {
-            "commission_payment_status": "submitted"|"confirmed"|"rejected","commission_status": "pending"|"due"|"partially_paid"|"paid"|"overdue"|"waived","company_kind": "supplier"|"buyer","deal_status": "negotiation"|"quotation_accepted"|"awaiting_payment_confirmation"|"payment_confirmed"|"production"|"ready_for_shipment"|"shipped"|"delivered"|"completed"|"cancelled"|"disputed","dispute_status": "open"|"under_review"|"resolved"|"closed","member_role": "owner"|"manager"|"member","product_status": "draft"|"published"|"archived","quotation_status": "submitted"|"negotiating"|"accepted"|"rejected"|"withdrawn"|"expired","report_status": "open"|"reviewed"|"dismissed","rfq_status": "open"|"closed"|"awarded"|"cancelled","shipment_status": "preparing"|"booked"|"in_transit"|"at_customs"|"delivered"|"exception","trade_doc_type": "commercial_invoice"|"packing_list"|"certificate_of_origin"|"bill_of_lading"|"shipping_document"|"customs_document"|"payment_evidence"|"contract"|"other","user_role": "admin"|"operations"|"supplier"|"buyer","verification_doc_type": "commercial_registration"|"tax_certificate"|"company_identity"|"export_license"|"other","verification_status": "pending"|"under_review"|"approved"|"rejected"|"needs_documents"
+            "commission_payment_status": "submitted"|"confirmed"|"rejected","commission_status": "pending"|"due"|"partially_paid"|"paid"|"overdue"|"waived","company_kind": "supplier"|"buyer"|"service_provider","deal_status": "negotiation"|"quotation_accepted"|"awaiting_payment_confirmation"|"payment_confirmed"|"production"|"ready_for_shipment"|"shipped"|"delivered"|"completed"|"cancelled"|"disputed","dispute_status": "open"|"under_review"|"resolved"|"closed","member_role": "owner"|"manager"|"member","product_status": "draft"|"published"|"archived","quotation_status": "submitted"|"negotiating"|"accepted"|"rejected"|"withdrawn"|"expired","report_status": "open"|"reviewed"|"dismissed","rfq_status": "open"|"closed"|"awarded"|"cancelled","shipment_status": "preparing"|"booked"|"in_transit"|"at_customs"|"delivered"|"exception","trade_doc_type": "commercial_invoice"|"packing_list"|"certificate_of_origin"|"bill_of_lading"|"shipping_document"|"customs_document"|"payment_evidence"|"contract"|"other","user_role": "admin"|"operations"|"supplier"|"buyer"|"service_provider","verification_doc_type": "commercial_registration"|"tax_certificate"|"company_identity"|"export_license"|"customs_license"|"other","verification_status": "pending"|"under_review"|"approved"|"rejected"|"needs_documents"
           }
           CompositeTypes: {
             [_ in never]: never
@@ -1305,7 +1365,7 @@ export const Constants = {
           }
         },"public": {
           Enums: {
-            "commission_payment_status": ["submitted", "confirmed", "rejected"],"commission_status": ["pending", "due", "partially_paid", "paid", "overdue", "waived"],"company_kind": ["supplier", "buyer"],"deal_status": ["negotiation", "quotation_accepted", "awaiting_payment_confirmation", "payment_confirmed", "production", "ready_for_shipment", "shipped", "delivered", "completed", "cancelled", "disputed"],"dispute_status": ["open", "under_review", "resolved", "closed"],"member_role": ["owner", "manager", "member"],"product_status": ["draft", "published", "archived"],"quotation_status": ["submitted", "negotiating", "accepted", "rejected", "withdrawn", "expired"],"report_status": ["open", "reviewed", "dismissed"],"rfq_status": ["open", "closed", "awarded", "cancelled"],"shipment_status": ["preparing", "booked", "in_transit", "at_customs", "delivered", "exception"],"trade_doc_type": ["commercial_invoice", "packing_list", "certificate_of_origin", "bill_of_lading", "shipping_document", "customs_document", "payment_evidence", "contract", "other"],"user_role": ["admin", "operations", "supplier", "buyer"],"verification_doc_type": ["commercial_registration", "tax_certificate", "company_identity", "export_license", "other"],"verification_status": ["pending", "under_review", "approved", "rejected", "needs_documents"]
+            "commission_payment_status": ["submitted", "confirmed", "rejected"],"commission_status": ["pending", "due", "partially_paid", "paid", "overdue", "waived"],"company_kind": ["supplier", "buyer", "service_provider"],"deal_status": ["negotiation", "quotation_accepted", "awaiting_payment_confirmation", "payment_confirmed", "production", "ready_for_shipment", "shipped", "delivered", "completed", "cancelled", "disputed"],"dispute_status": ["open", "under_review", "resolved", "closed"],"member_role": ["owner", "manager", "member"],"product_status": ["draft", "published", "archived"],"quotation_status": ["submitted", "negotiating", "accepted", "rejected", "withdrawn", "expired"],"report_status": ["open", "reviewed", "dismissed"],"rfq_status": ["open", "closed", "awarded", "cancelled"],"shipment_status": ["preparing", "booked", "in_transit", "at_customs", "delivered", "exception"],"trade_doc_type": ["commercial_invoice", "packing_list", "certificate_of_origin", "bill_of_lading", "shipping_document", "customs_document", "payment_evidence", "contract", "other"],"user_role": ["admin", "operations", "supplier", "buyer", "service_provider"],"verification_doc_type": ["commercial_registration", "tax_certificate", "company_identity", "export_license", "customs_license", "other"],"verification_status": ["pending", "under_review", "approved", "rejected", "needs_documents"]
           }
         }
 } as const

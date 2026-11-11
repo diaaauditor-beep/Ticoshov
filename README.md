@@ -46,6 +46,12 @@ categories and units are added from the admin console without code changes.
   parent category), country, then the platform default (5%, within the 3–8% guideline). Commissions
   become due on completion and are waived on cancellation. The supplier reports a payment and an
   **administrator** confirms it. Overdue tracking is included.
+- **Customs brokers & logistics providers.**
+  - A third account type that registers and is verified by staff like a supplier, with a public directory.
+  - A buyer or supplier adds a provider to a specific deal. The provider then sees the route, shipment and
+    shipping/customs documents only (never the deal value, quotation, payments, commission, contract or
+    messages), can update the shipment status and upload customs documents.
+  - Either party can remove the provider at any time; access ends immediately.
 - **Disputes.** Either party can open a dispute, which freezes the deal. Staff resolve it by resuming
   the deal, marking it completed, or cancelling it.
 - **Reviews, notifications, admin dashboard and audit log.**
@@ -122,9 +128,9 @@ Demo records are kept clearly apart from real ones:
 ### Tests
 
 ```bash
-npm run test:db     # 15 end-to-end workflow + RLS tests (needs local Supabase; after `db reset` wait a few seconds for services to restart)
+npm run test:db     # 16 end-to-end workflow + RLS tests (needs local Supabase; after `db reset` wait a few seconds for services to restart)
 npm run build && npx next start -p 3000 &
-npm run test:ui     # 14-step browser journey (Playwright/Chromium)
+npm run test:ui     # 18-step browser journey (Playwright/Chromium)
 npm run lint && npx tsc --noEmit
 ```
 

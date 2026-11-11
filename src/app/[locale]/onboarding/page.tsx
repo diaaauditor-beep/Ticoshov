@@ -22,9 +22,10 @@ export default async function OnboardingPage({ params }: PageProps<"/[locale]/on
         <h1 className="mt-1 text-2xl font-semibold text-navy-900">{t.onboarding.title}</h1>
         <p className="mt-1 text-sm text-slate-500">{t.onboarding.text}</p>
         {viewer.profile.role === "supplier" && <div className="mt-4"><Notice tone="navy">{t.onboarding.supplierNext}</Notice></div>}
+        {viewer.profile.role === "service_provider" && <div className="mt-4"><Notice tone="navy">{t.onboarding.providerNext}</Notice></div>}
         <ActionForm action={createCompanyAction} errors={t.errors} className="card card-pad mt-6">
           <input type="hidden" name="locale" value={locale} />
-          <CompanyFields t={t} locale={locale} reference={ref} d={{ country_code: viewer.profile.role === "buyer" ? "SA" : "EG", contact_name: viewer.profile.full_name, contact_email: viewer.email }} />
+          <CompanyFields t={t} locale={locale} reference={ref} kind={viewer.profile.role} d={{ country_code: viewer.profile.role === "supplier" ? "EG" : "SA", contact_name: viewer.profile.full_name, contact_email: viewer.email }} />
           <div className="mt-8 flex justify-end"><SubmitButton>{t.onboarding.create}</SubmitButton></div>
         </ActionForm>
       </main>

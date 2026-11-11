@@ -25,7 +25,8 @@ export default async function CompanyProfilePage({ params }: PageProps<"/[locale
     supabase.from("reviews").select("rating, comment, created_at").eq("reviewee_company_id", c.id).order("created_at", { ascending: false }).limit(10),
   ]);
   const avg = reviews?.length ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length : null;
-  const verified = c.kind === "supplier" && c.verification_status === "approved";
+  const provider = c.kind === "service_provider";
+  const verified = c.kind !== "buyer" && c.verification_status === "approved";
   const rfqHref = `/${locale}/dashboard/rfqs/new?supplier=${c.id}`;
 
   return (
@@ -38,7 +39,7 @@ export default async function CompanyProfilePage({ params }: PageProps<"/[locale
         <div className="flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-semibold text-navy-900">{loc(locale, c.name_ar, c.name)}</h1>
-            {verified ? <VerifiedBadge label={t.company.verified} /> : <Badge>{t.enums.companyKind[c.kind]}</Badge>}
+            {verified ? <VerifiedBadge label={provider ? t.providers.verified : t.company.verified} /> : <Badge>{t.enums.companyKind[c.kind]}</Badge>}
           </div>
           <p className="mt-1 text-sm text-slate-500">{t.enums.businessType[c.business_type as keyof typeof t.enums.businessType]} · {c.city}, {countryName(ref, c.country_code, locale)}</p>
           {avg != null && <p className="mt-1 text-sm text-brass-600">★ {avg.toFixed(1)} ({reviews!.length})</p>}
@@ -57,8 +58,8 @@ export default async function CompanyProfilePage({ params }: PageProps<"/[locale
             [t.company.employees, c.employees_range ?? "—"],
             [t.company.website, c.website ? <a className="link" href={c.website} target="_blank" rel="noopener noreferrer nofollow" dir="ltr">{c.website.replace(/^https?:\/\//, "")}</a> : "—"],
             [t.company.memberSince, formatDate(c.created_at, locale)],
-            [t.company.exportMarkets, c.export_markets.map((x) => countryName(ref, x, locale)).join("، ") || "—"],
-            [t.company.categories, c.company_categories.map((x) => categoryName(ref, x.category_id, locale)).join("، ") || "—"],
+            [provider ? t.providers.countriesServed : t.company.exportMarkets, c.export_markets.map((x) => countryName(ref, x, locale)).join("، ") || "—"],
+            ...(provider ? [] : [[t.company.categories, c.company_categories.map((x) => categoryName(ref, x.category_id, locale)).join("، ") || "—"] as [string, string]]),
           ]} />
         </Section>
       </div>

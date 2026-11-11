@@ -12,6 +12,7 @@ export async function SiteHeader({ locale, t, variant = "light" }: { locale: Loc
   const links = [
     { href: `/${locale}/products`, label: t.nav.products },
     { href: `/${locale}/suppliers`, label: t.nav.suppliers },
+    { href: `/${locale}/service-providers`, label: t.nav.serviceProviders },
     { href: `/${locale}#how`, label: t.nav.howItWorks },
     { href: `/${locale}#faq`, label: t.nav.faq },
   ];

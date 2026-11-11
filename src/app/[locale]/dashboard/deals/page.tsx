@@ -4,10 +4,19 @@ import { createClient } from "@/lib/supabase/server";
 import { EmptyState, PageHeader } from "@/components/ui/primitives";
 import { DealsTable, type DealRow } from "@/components/tables";
 import { sp } from "@/lib/search";
+import { ProviderDealsTable } from "@/components/ProviderDealsTable";
 
 export default async function DealsPage({ params, searchParams }: PageProps<"/[locale]/dashboard/deals">) {
   const { locale, t } = await resolveLocale(params);
-  await requireCompany(locale);
+  const viewer = await requireCompany(locale);
+  if (viewer.company.kind === "service_provider") {
+    return (
+      <div>
+        <PageHeader title={t.nav.assignedDeals} description={t.providers.intro} />
+        <ProviderDealsTable t={t} locale={locale} />
+      </div>
+    );
+  }
   const s = await searchParams;
   const status = sp(s.status);
   const supabase = await createClient();

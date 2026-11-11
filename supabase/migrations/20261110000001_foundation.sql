@@ -9,13 +9,14 @@ create extension if not exists pg_trgm with schema extensions;
 -- ---------------------------------------------------------------------
 -- Enums
 -- ---------------------------------------------------------------------
-create type public.user_role as enum ('admin', 'operations', 'supplier', 'buyer');
-create type public.company_kind as enum ('supplier', 'buyer');
+create type public.user_role as enum ('admin', 'operations', 'supplier', 'buyer', 'service_provider');
+-- service_provider: customs brokers, clearing agents, freight forwarders (see migration 10)
+create type public.company_kind as enum ('supplier', 'buyer', 'service_provider');
 create type public.member_role as enum ('owner', 'manager', 'member');
 create type public.verification_status as enum
   ('pending', 'under_review', 'approved', 'rejected', 'needs_documents');
 create type public.verification_doc_type as enum
-  ('commercial_registration', 'tax_certificate', 'company_identity', 'export_license', 'other');
+  ('commercial_registration', 'tax_certificate', 'company_identity', 'export_license', 'customs_license', 'other');
 create type public.product_status as enum ('draft', 'published', 'archived');
 create type public.rfq_status as enum ('open', 'closed', 'awarded', 'cancelled');
 create type public.quotation_status as enum
@@ -118,7 +119,9 @@ create table public.companies (
   city                 text not null check (char_length(city) between 1 and 120),
   business_type        text not null check (business_type in (
                          'manufacturer', 'factory', 'wholesaler', 'supplier', 'importer',
-                         'distributor', 'retailer', 'trading_company', 'other')),
+                         'distributor', 'retailer', 'trading_company', 'other',
+                         -- service providers
+                         'customs_broker', 'freight_forwarder', 'logistics_provider', 'inspection_agency')),
   description          text check (description is null or char_length(description) <= 4000),
   description_ar       text check (description_ar is null or char_length(description_ar) <= 4000),
   website              text check (website is null or website ~* '^https?://'),

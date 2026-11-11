@@ -18,12 +18,13 @@ The migrations in `supabase/migrations/` are the source of truth. The database h
 | `…007_storage` | `public-assets` and `private-files` buckets (size and MIME allow-lists), `can_access_file()`, storage policies |
 | `…008_reference_data` | EG/SA (active) and 8 inactive countries, 5 currencies, units, Incoterms 2020, categories, default settings, and the EG→SA document checklist |
 | `…009_admin` | `admin_list_users`, `admin_set_user`, `start_verification_review` |
+| `…010_service_providers` | `deal_service_providers`, provider access helpers, provider RPCs, provider paths in shipment/document/storage policies (see below) |
 
 ## Roles
 
-`profiles.role` is one of `admin | operations | supplier | buyer`.
+`profiles.role` is one of `admin | operations | supplier | buyer | service_provider`.
 
-- Sign-up can only produce `supplier` or `buyer`. Any other value in the signup metadata is ignored.
+- Sign-up can only produce `supplier`, `buyer` or `service_provider`. Any other value in the signup metadata is ignored.
 - Only an admin can change a role or deactivate an account. Admins cannot demote or deactivate
   themselves.
 - `operations` is staff. It can review verifications, moderate, handle disputes and move deals.
@@ -81,6 +82,28 @@ disputed: only via open_dispute / resolve_dispute
 
 Staff can apply any transition (it is recorded in the history). Completion makes the commission
 `due`, with a due date of today plus `commission_due_days`. Cancellation waives an unpaid commission.
+
+## Service providers (customs brokers, freight forwarders)
+
+- A `service_provider` company registers itself and goes through the same staff verification as a
+  supplier (`supplier_verifications`). Its business type must be one of `customs_broker`,
+  `freight_forwarder`, `logistics_provider`, `inspection_agency`, and providers cannot use those types.
+- It has **no** access to any deal until a deal party calls `add_deal_service_provider()`
+  (after acceptance, before the deal is closed). Only verified, active providers can be added.
+- While the assignment is active **and** the provider stays verified and active (`is_deal_provider()`):
+  - `my_provider_deals()` / `provider_deal_summary()` return a limited summary: reference, title,
+    status, parties, route, Incoterm, quantity, instructions. There is no SELECT on `deals`, so the
+    deal value, quotation, payment declarations and history are never exposed.
+  - It can read `shipments` and change the shipment status through `provider_update_shipment()`
+    (in transit, at customs, delivered, exception). Direct writes are denied.
+  - It can read shipping documents only (`provider_visible_doc()`: commercial invoice, packing list,
+    certificate of origin, bill of lading, shipping and customs documents) plus its own uploads.
+    Contracts, payment evidence and "other" files stay between the parties, in the table and in Storage.
+  - It can upload customs documents, shipping documents, bills of lading and certificates of origin
+    in its own name.
+- No access to commissions, conversations, disputes, reviews or RFQs.
+- `remove_deal_service_provider()` (either party, the provider itself, or staff) ends access
+  immediately. Assignments are audited.
 
 ## Storage
 

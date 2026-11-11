@@ -15,9 +15,9 @@ Nothing here was run against a cloud Supabase project or Vercel.
 | `npx tsc --noEmit` | ✅ no errors |
 | `npm run lint` | ✅ no errors, no warnings |
 | `npm run build` | ✅ all routes compile |
-| `npx supabase db reset` (all 9 migrations from scratch) | ✅ |
-| `npm run test:db`: 15 database/RLS workflow tests | ✅ 15 / 15 |
-| `npm run test:ui`: 14-step browser journey | ✅ 14 / 14 |
+| `npx supabase db reset` (all 10 migrations from scratch) | ✅ |
+| `npm run test:db`: 16 database/RLS workflow tests | ✅ 16 / 16 |
+| `npm run test:ui`: 18-step browser journey | ✅ 18 / 18 |
 | `scripts/make-admin.mjs` | ✅ (exercised by the UI test) |
 | `scripts/seed-demo.mjs` (create, re-run, `--remove`) | ✅ |
 
@@ -97,6 +97,15 @@ to create test users and to check the resulting state.
     - One party declaring payment twice does not confirm it, and production cannot start before both parties have declared.
     - **A buyer cannot accept a quotation the supplier revised after the buyer last saw it** (see defect 7).
 
+16. **Service providers (customs brokers).**
+    - A provider must use a service business type, starts unverified and hidden, cannot self-approve, and appears in the public directory after staff approval.
+    - Providers cannot post RFQs or products.
+    - Outsiders, the provider itself and unverified providers cannot be added to a deal; direct inserts are denied.
+    - Once added, the provider gets a summary **without the deal value**, and no access to the deals table, quotation, commission, history or conversation. It cannot move the deal, declare payment or open a dispute.
+    - It sees and downloads shipping documents only; contracts and payment evidence are refused in both the table and Storage. It cannot upload payment evidence or upload in a party's name.
+    - Shipment status changes only through the provider function; direct edits are ignored. Other providers are refused.
+    - Removal, and deactivation of the provider company, end all access immediately.
+
 ## What the browser test proves (`tests/ui-flow.mjs`)
 
 1. A supplier signs up (EN UI) and the confirmation email arrives in Mailpit.
@@ -112,7 +121,11 @@ to create test users and to check the resulting state.
 11. The supplier submits a quotation (total 7,250).
 12. The buyer accepts it from the comparison table, a deal is created, and its `TCS-…` reference is shown.
 13. The commission (362.50) appears on the supplier's commissions page.
-14. No horizontal overflow in real mobile emulation at 320 px and 390 px, for the AR and EN landing, products and register pages.
+14. A customs broker signs up with the **Arabic** UI, sees only service business types (no product categories), onboards and submits a licence for verification.
+15. The admin approves it, and it appears in the public directory filtered by a country it serves.
+16. The buyer adds the broker to the deal with instructions.
+17. The broker opens the deal from "Assigned deals": the page shows the instructions and does **not** contain the deal value, unit price or commission. The broker uploads a customs declaration, and the buyer sees it.
+18. No horizontal overflow in real mobile emulation at 320 px and 390 px, for the AR and EN landing, products, register and service-provider directory pages.
 
 Screenshots are written to `tests/screenshots/` (gitignored). They were reviewed manually for the
 AR deal page, the EN admin overview, search, the verification page and mobile.

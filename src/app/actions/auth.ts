@@ -39,7 +39,7 @@ export async function signUpAction(_: ActionState, fd: FormData): Promise<Action
   const email = str(fd, "email").toLowerCase();
   const password = String(fd.get("password") ?? "");
   const fieldErrors: Record<string, string> = {};
-  if (role !== "supplier" && role !== "buyer") fieldErrors.role = "required";
+  if (role !== "supplier" && role !== "buyer" && role !== "service_provider") fieldErrors.role = "required";
   if (fullName.length < 2 || fullName.length > 120) fieldErrors.full_name = "required";
   if (!z.string().email().safeParse(email).success) fieldErrors.email = "invalid";
   if (!passwordSchema.safeParse(password).success) fieldErrors.password = "weakPassword";
@@ -52,7 +52,7 @@ export async function signUpAction(_: ActionState, fd: FormData): Promise<Action
     email,
     password,
     options: {
-      // role is restricted to supplier|buyer by the handle_new_user() database trigger
+      // role is restricted to supplier|buyer|service_provider by the handle_new_user() database trigger
       // terms_accepted_at records click-wrap acceptance of the terms version shown at signup
       data: { role, full_name: fullName, locale, terms_accepted_at: new Date().toISOString() },
       emailRedirectTo: `${site()}/auth/confirm?next=/${locale}/onboarding`,

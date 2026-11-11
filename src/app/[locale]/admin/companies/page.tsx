@@ -16,7 +16,7 @@ export default async function AdminCompaniesPage({ params, searchParams }: PageP
   const ref = await getReference();
   let query = supabase.from("companies").select("id, name, name_ar, kind, country_code, city, verification_status, is_active, is_demo, created_at");
   if (q) query = query.or(`name.ilike.%${q}%,name_ar.ilike.%${q}%`);
-  if (kind === "supplier" || kind === "buyer") query = query.eq("kind", kind);
+  if (kind === "supplier" || kind === "buyer" || kind === "service_provider") query = query.eq("kind", kind);
   if (ver in t.enums.verificationStatus) query = query.eq("verification_status", ver as "approved");
   const { data } = await query.order("created_at", { ascending: false }).limit(300);
   const C = t.admin.companies;

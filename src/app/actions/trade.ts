@@ -310,3 +310,35 @@ export async function markNotificationsReadAction(_: ActionState, fd: FormData):
   refresh();
   return { ok: true };
 }
+
+// ---------------------------------------------------------------- service providers on a deal
+export async function addDealProviderAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const provider = str(fd, "provider_id");
+  if (!provider) return { error: "required", fieldErrors: { provider_id: "required" } };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("add_deal_service_provider", {
+    p_deal: str(fd, "deal_id"), p_provider: provider, p_service: str(fd, "service") || "customs_clearance", p_note: str(fd, "note"),
+  });
+  if (error) return { error: errorKey(error) };
+  refresh();
+  return { ok: true };
+}
+
+export async function removeDealProviderAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("remove_deal_service_provider", { p_assignment: str(fd, "id") });
+  if (error) return { error: errorKey(error) };
+  refresh();
+  if (str(fd, "leave") === "1") redirect(`/${str(fd, "locale") === "en" ? "en" : "ar"}/dashboard/deals`);
+  return { ok: true };
+}
+
+export async function providerShipmentAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("provider_update_shipment", {
+    p_shipment: str(fd, "shipment_id"), p_status: str(fd, "status") as Database["public"]["Enums"]["shipment_status"],
+  });
+  if (error) return { error: errorKey(error) };
+  refresh();
+  return { ok: true };
+}

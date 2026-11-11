@@ -82,6 +82,12 @@ Each item below must be confirmed or rewritten by qualified counsel in **Egypt**
     - Have a licensed customs broker validate the list: commercial invoice, packing list,
       certificate of origin, bill of lading/AWB, SASO/SABER conformity for textiles, and
       chamber-of-commerce legalisation.
+19a. **Service providers (customs brokers, freight forwarders).**
+    - Terms for providers: licensing claims, liability for clearance errors, and the statement that
+      TICOSHOV does not supervise or guarantee their services.
+    - Privacy policy: parties choose to share shipping/customs documents with a provider they add;
+      confirm the wording and the legal basis for this disclosure in EG and KSA.
+    - Whether a customs-broker licence must be checked against an official register before approval.
 
 ## Dispute procedure
 

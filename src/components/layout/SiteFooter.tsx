@@ -26,6 +26,8 @@ export async function SiteFooter({ locale, t }: { locale: Locale; t: Dictionary 
             <li><Link className="hover:text-white" href={`/${locale}/products`}>{t.nav.products}</Link></li>
             <li><Link className="hover:text-white" href={`/${locale}/suppliers`}>{t.nav.suppliers}</Link></li>
             <li><Link className="hover:text-white" href={`/${locale}/register?role=supplier`}>{t.nav.forSuppliers}</Link></li>
+            <li><Link className="hover:text-white" href={`/${locale}/service-providers`}>{t.nav.serviceProviders}</Link></li>
+            <li><Link className="hover:text-white" href={`/${locale}/register?role=service_provider`}>{t.nav.forProviders}</Link></li>
             <li><Link className="hover:text-white" href={`/${locale}/register?role=buyer`}>{t.nav.forBuyers}</Link></li>
           </ul>
         </div>

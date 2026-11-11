@@ -9,10 +9,11 @@ export const metadata: Metadata = { title: "Create account" };
 export default async function RegisterPage({ params, searchParams }: PageProps<"/[locale]/register">) {
   const { locale, t } = await resolveLocale(params);
   const sp = await searchParams;
-  const preselected = sp.role === "supplier" ? "supplier" : "buyer";
+  const preselected = sp.role === "supplier" || sp.role === "service_provider" ? sp.role : "buyer";
   const roles = [
     ["buyer", t.auth.roleBuyerTitle, t.auth.roleBuyerText],
     ["supplier", t.auth.roleSupplierTitle, t.auth.roleSupplierText],
+    ["service_provider", t.auth.roleProviderTitle, t.auth.roleProviderText],
   ] as const;
   return (
     <div>
@@ -22,7 +23,7 @@ export default async function RegisterPage({ params, searchParams }: PageProps<"
         <input type="hidden" name="locale" value={locale} />
         <fieldset>
           <legend className="label">{t.auth.iAm}</legend>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {roles.map(([value, title, text]) => (
               <label key={value} className="cursor-pointer rounded-lg border border-slate-300 bg-white p-3 has-checked:border-navy-700 has-checked:ring-2 has-checked:ring-navy-700/15">
                 <input type="radio" name="role" value={value} defaultChecked={value === preselected} className="sr-only" />
