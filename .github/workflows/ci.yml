@@ -16,7 +16,8 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Type check
-        run: npx tsc --noEmit
+        # PageProps/LayoutProps route types are generated into .next/types (gitignored)
+        run: npx next typegen && npx tsc --noEmit
       - name: Lint
         run: npm run lint
       - name: Build
